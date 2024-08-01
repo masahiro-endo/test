@@ -1,5 +1,6 @@
-from shoot import *
-from pgzrun import *
+
+from pgzero.builtins import Actor
+
 
 # プレイヤークラス（Actorクラスを継承）
 class Player(Actor):
@@ -10,8 +11,9 @@ class Player(Actor):
         self.isRunning = True
      
     def update(self):
-        if self.isRunning == False:
-            player.pos = -1000, -1000
+        None
+        #if self.isRunning == False:
+        #    player.pos = -1000, -1000
  
 # プレイヤーの弾クラス
 class Shot(Actor):
