@@ -1,7 +1,7 @@
 import pgzrun
 import os
 import random
-from shoot_sub import *
+from test.sample_shot_sub import *
 os.chdir('test')
 
 
