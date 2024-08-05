@@ -54,7 +54,7 @@ def draw():
         screen.draw.text('Alien Shooter Game\n            by Pygame Zero', \
                          left=150,top=240,fontsize=64,color='YELLOW')
     else:
-        for sp in objects:
+        for sp in g.objects:
             sp.draw()
         if g.gameover > 0:
             screen.draw.text("Game Over\n\n    SCORE TIME -> {0:.1f}s".format(g.out_time), \
@@ -77,9 +77,10 @@ def update():
     
     if g.titlemode == True:
         # スペースを押すとゲーム開始
-        if keyboard.space: titlemode = False
-        g.start = time.time()
-        g.out_time = 0
+        if keyboard.space: 
+            g.titlemode = False
+            g.start = time.time()
+            g.out_time = 0
         
         return
 
@@ -94,7 +95,7 @@ def update():
     elif g.bosstimer > 0 and random.randrange(80)==0: # 敵1出現
         y = random.randrange(WIDTH - 200) + 100
         g.objects.append(Enemy(y, 0, 0, 4))
-    elif bosstimer > 0 and random.randrange(100)==0: # 敵2出現
+    elif g.bosstimer > 0 and random.randrange(100)==0: # 敵2出現
         y = random.randrange(WIDTH - 200) + 100
         g.objects.append(Enemy(y, 0, 0, 5))
     #else:
@@ -108,7 +109,7 @@ def update():
             sp.x = g.OUTSIDE
         if sp.x<-35 or sp.x>(HEIGHT+35) or sp.y<-35 or sp.y>(WIDTH+35):
             if sp.num == 6:
-                bosstimer = 60 * 10
+                g.bosstimer = 60 * 10
             g.objects.remove(sp)  # 画面外のスプライトを消去
 
     if g.gameover == 0:

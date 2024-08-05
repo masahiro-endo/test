@@ -73,7 +73,7 @@ class Shot(Spclass):
         self.pos = spritemove(self.pos, self.angle, 8) 
         # 敵との衝突範囲を判定
         hitbox = Rect((self.x-15, self.y-15), (30, 30))
-        for sp in objects:
+        for sp in g.objects:
             if charas[sp.num].enemy==False or sp.hp==99:
                 continue
             if sp.colliderect(hitbox): # アタリ判定内に入ると爆発
