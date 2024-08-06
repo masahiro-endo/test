@@ -3,7 +3,8 @@ from pgzero.builtins import *
 import pygame
 import math
 import random
-import shooter_global as g
+from enum import Enum
+import global_value as g
 
 
 
@@ -48,12 +49,27 @@ charas.append(Characlass("snail_walk1.png",15,True))
 pipe_bottom = Actor('rock_moss_alt', anchor=('left', 'top'))
 
 
+class SCENE(Enum):
+    TITLE = 1
+    GAME = 2
+    GAMEOVER = 3
+
+class CHARA_TYPE(Enum):
+    EXPLOSION = 0
+    PLAYER_SHOT = 1
+    PLAYER = 2
+    ENEMY_SHOT = 3
+    ENEMY_1 = 4
+    ENEMY_2 = 5
+    ENEMY_BOSS = 6
+    DEBRIS = 7
+
 
 
 # スプライト(ゲーム背景とは別に動く画像)のクラス。Actorクラスを継承
 # クラスでない記述例は、上記の7静体
 class Spclass(Actor):
-    def __init__(self, x, y, angle, num):
+    def __init__(self, x, y, angle, num: CHARA_TYPE):
         Actor.__init__(self,charas[num].imagename,(x,y))
         self.angle = angle       # 角度
         self.hp = charas[num].hp # ヒットポイント
@@ -77,7 +93,7 @@ class Shot(Spclass):
             if charas[sp.num].enemy==False or sp.hp==99:
                 continue
             if sp.colliderect(hitbox): # アタリ判定内に入ると爆発
-                g.objects.append(Explosion(sp.x, sp.y, 0, 0))
+                g.objects.append(Explosion(sp.x, sp.y, 0, CHARA_TYPE.EXPLOSION))
                 self.x = g.OUTSIDE
                 sp.hp -= 1
                 break
@@ -157,7 +173,7 @@ class Boss(Spclass):
             self.y = (HEIGHT / 2) + (math.sin(rad) * 200) # 上下に動く
         if self.count > 150 and (self.count % 5) == 0:
             newangle = (self.count * 4) % 360 # 全方向へ
-            g.objects.append(EnemyShot(self.x, self.y, newangle, 3))
+            g.objects.append(EnemyShot(self.x, self.y, newangle, CHARA_TYPE.ENEMY_SHOT))
 
 
 
