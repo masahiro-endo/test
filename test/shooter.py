@@ -60,61 +60,28 @@ def draw():
     
     if g.game_state==SCENE.TITLE:
         pass
-        # screen.draw.text('test test test\n', \
-        #                  left=150,top=240,fontsize=64,color='YELLOW')
     else:
         for sp in g.objects:
             sp.draw()
-
-        # if g.game_state==SCENE.GAMEOVER:
-        #     screen.draw.text("Game Over\n\n    SCORE TIME -> {0:.1f}s".format(g.out_time), \
-        #                      left=200,top=240,fontsize=64,color='RED')
-
-
-##### 隕石左へ消える
-def reset_pipes():
-    pipe_gap_y = random.randint(200, HEIGHT - 200)
-    pipe_bottom.pos = (WIDTH, pipe_gap_y + Setting.GAP // 2)
-##### 隕石右から現れる
-def update_pipes():
-    pipe_bottom.left -= 3
-    if pipe_bottom.right < 0:
-        reset_pipes()
 
 
 ##### Pygame zeroのメイン関数とも言うべきupdata関数
 # 文末当たりのpgzrun.go()実行により、この関数がループすることになる。
 def update():
     
-    # update_pipes()
-
     for scene in reversed(g.currentScene):
         if scene is None:
             continue
         scene.update()
-                
-        #  for event in pygame.event.get():
-        #    scene.handler(event)
         scene.handler(keyboard)
 
     if g.game_state==SCENE.TITLE:
-        pass
-        # スペースを押すとゲーム開始
-        # if keyboard.space: 
-        #     g.scene = SCENE.GAME
-        #     g.start = time.time()
-        #     g.out_time = 0
-        
+        pass        
         return
 
     elif g.game_state==SCENE.GAMEOVER:
         pass
         return
-
-    # for i in range(len(g.stars)):
-    #     g.stars[i].x-=(i+1)  # 星を右から左へ動かす
-    #     if g.stars[i].x < 0:
-    #         g.stars[i].x = WIDTH
 
     g.bosstimer -= 1
     if g.bosstimer==0:
@@ -130,29 +97,26 @@ def update():
         y = random.randrange(1, HEIGHT, 10)
         rad = random.randrange(-60, 60, 1)
         g.objects.append(Debris(WIDTH, y, rad, CHARA.DEBRIS))
-    #else:
-    #    bosstimer = 60 * 1
+    else:
+        pass
 
     for sp in reversed(g.objects):
         sp.update()
         sp.count += 1
+
         if sp.hp <= 0:
             g.objects.append(Explosion(sp.x, sp.y, 0, CHARA.EXPLOSION))
             g.objects.remove(sp)  # 耐久値ゼロのスプライトを消去
             continue
         
         if not Setting.is_dispay_area(sp.pos):
-        # if sp.x < 0 or sp.x > WIDTH or sp.y < 0 or sp.y > HEIGHT:
             g.objects.remove(sp)  # 画面外のスプライトを消去
             continue
 
     if not (g.player in g.objects):
         g.scene = SCENE.GAMEOVER
         g.out_time = time.time() - g.start # ゲームオーバーまでの時間を計算
-        # mylist = ['time[s]', g.out_time]
-        # with open(now + '_record_Alien_Shooter_by_Pygame_Zero.csv', 'a', encoding="utf-8") as f:
-        #     writer = csv.writer(f, lineterminator='\n') # 改行コード
-        #     writer.writerow(mylist) 
+
         g.currentScene.popleft()
         g.currentScene.appendleft(GameOverScene())
     
