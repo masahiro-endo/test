@@ -3,66 +3,13 @@ from pgzero.builtins import *
 import pygame
 import math
 import random
-from enum import Enum
+from enum import Enum, auto
 import global_value as g
 from typing import Any, Dict
+from shooter_control import *
 
 
 
-
-##### 関数
-# 指定した角度に移動
-# 引数を極座標系定義で受け取り、直行座標系へ変換する
-def spritemove(pos, angle, speed):
-    x, y = pos
-    rad = math.radians(angle)
-    x += speed  * (math.cos(rad))
-    y += speed  * (math.sin(rad))
-    
-    return x, y
-
-def spritemove_reverse(pos, angle, speed):
-    x, y = pos
-    rad = math.radians(angle)
-    x -= speed  * (math.cos(rad))
-    y -= speed  * (math.sin(rad))
-    
-    return x, y
-
-
-# キャラクター情報のクラス
-class Characlass:
-    def __init__(self, filename, hp ,enemy):
-        self.imagename = filename  # 画像ファイル名
-        self.hp = hp               # ヒットポイント
-        self.is_enemy = enemy         # 敵フラグ True
-
-
-##### キャラクターの定義
-charas = []
-# 0:爆発
-charas.append(Characlass("star.png", 1, False))
-# 1:自機弾
-charas.append(Characlass("mushroom_red.png",1,False))
-# 2:自機
-charas.append(Characlass("alien.png", 2, False))
-# 3:敵弾
-charas.append(Characlass("fireball.png", 1,True))
-# 4:敵1
-charas.append(Characlass("fly_fly1.png", 1, True))
-# 5:敵2
-charas.append(Characlass("fish_swim1.png", 2, True))
-# 6:ボス
-charas.append(Characlass("snail_walk1.png",15,True))
-# 7:隕石
-charas.append(Characlass("rock_moss_alt.png",100,True))
-pipe_bottom = Actor('rock_moss_alt', anchor=('left', 'top'))
-
-
-class SCENE(Enum):
-    TITLE = 1
-    GAME = 2
-    GAMEOVER = 3
 
 class CHARA(Enum):
     EXPLOSION = 0
@@ -81,28 +28,43 @@ class SPEED(Enum):
     RANDOM = 12
 
 
-class Define:
+# キャラクター情報
+class CharaData:
+    def __init__(self, filename, hp ,enemy):
+        self.imagename = filename  # 画像ファイル名
+        self.hp = hp               # ヒットポイント
+        self.is_enemy = enemy      # 敵フラグ True
+
+class Info:
     charas: Dict[Enum, Any] = {
-            CHARA.EXPLOSION  : Characlass("star.png", 1, False),
-            CHARA.PLAYER_SHOT: Characlass("mushroom_red.png",1,False),
-            CHARA.PLAYER     : Characlass("alien.png",2,False),
-            CHARA.ENEMY_SHOT : Characlass("fireball.png",1,True),
-            CHARA.ENEMY_1    : Characlass("fly_fly1.png",1,True),
-            CHARA.ENEMY_2    : Characlass("fish_swim1.png",2,True),
-            CHARA.ENEMY_BOSS : Characlass("snail_walk1.png",15,True),
-            CHARA.DEBRIS     : Characlass("rock_moss_alt.png",100,True),
+            CHARA.EXPLOSION  : CharaData,
+            CHARA.PLAYER_SHOT: CharaData,
+            CHARA.PLAYER     : CharaData,
+            CHARA.ENEMY_SHOT : CharaData,
+            CHARA.ENEMY_1    : CharaData,
+            CHARA.ENEMY_2    : CharaData,
+            CHARA.ENEMY_BOSS : CharaData,
+            CHARA.DEBRIS     : CharaData,
     }
 
+Info.charas[CHARA.EXPLOSION]   = CharaData("star.png", 1, True)
+Info.charas[CHARA.PLAYER_SHOT] = CharaData("mushroom_red.png", 1, False)
+Info.charas[CHARA.PLAYER]      = CharaData("alien.png", 3, False)
+Info.charas[CHARA.ENEMY_SHOT]  = CharaData("fireball.png", 1, True)
+Info.charas[CHARA.ENEMY_1]     = CharaData("fly_fly1.png", 1, True)
+Info.charas[CHARA.ENEMY_2]     = CharaData("fish_swim1.png", 2, True)
+Info.charas[CHARA.ENEMY_BOSS]  = CharaData("snail_walk1.png", 10, True)
+Info.charas[CHARA.DEBRIS]      = CharaData("rock_moss_alt.png", 100, True)
 
 
 
 # スプライト(ゲーム背景とは別に動く画像)のクラス。Actorクラスを継承
 # クラスでない記述例は、上記の7静体
 class Spclass(Actor):
-    def __init__(self, x, y, angle, num: CHARA):
-        Actor.__init__(self,charas[num.value].imagename,(x,y))
+    def __init__(self, x, y, angle, num: Enum):
+        Actor.__init__(self, Info.charas[num].imagename, (x, y))
         self.angle = angle       # 角度
-        self.hp = charas[num.value].hp # ヒットポイント
+        self.hp = Info.charas[num].hp # ヒットポイント
         self.count = 0           # カウンタ
         self.num = num           # キャラクタNo
 
@@ -116,9 +78,11 @@ class Spclass(Actor):
 
 # 爆発マークのクラス。Spclassクラスを継承
 class Explosion(Spclass):
+    COUNT_LIVE = 20
+
     def update(self):
         # カウント20超えると、表示を消滅する
-        if self.count > 20: 
+        if self.count > self.COUNT_LIVE: 
             self.dispose()
 
 
@@ -130,32 +94,51 @@ class Shot(Spclass):
 
     def update(self):
         # 弾の弾道や速度を決める(関数に入れて戻り値)
-        self.pos = spritemove(self.pos, self.angle, self.speed) 
+        self.pos = spritemove_right(self.pos, self.angle, self.speed) 
+
         # 敵との衝突範囲を判定
         hitbox = Rect((self.x-15, self.y-15), (30, 30))
-        for sp in g.objects:
-            if (not charas[sp.num.value].is_enemy) or sp.hp==99:
+        for sp in reversed(g.objects):
+            if not Info.charas[sp.num].is_enemy:
                 continue
             if sp.colliderect(hitbox): # アタリ判定内に入ると爆発
                 g.objects.append(Explosion(sp.x, sp.y, 0, CHARA.EXPLOSION))
                 self.dispose()
                 break
 
+
 # 自機のクラス。Spclassクラスを継承
 class Player(Spclass):
 
-    COUNT_LAUNCH = 50
+    class COUNT():
+        LAUNCH = 1
+        DAMAGE = 20
 
     class STATE(Enum):
-        LAUNCH = 1
-        CONTROLABLE = 2
+        INVINCIBLE = auto()
+        CONTROLABLE = auto()
+        UNCONTROLABLE = auto()
+        LAUNCH = auto()
+        NORMAL = auto()
+        DAMAGE = auto()
 
-    _state = STATE.LAUNCH
+    _state = None
+
+
+    def change_normal(self):
+        self._state = self.STATE.NORMAL
+        self.image = 'alien.png'
+
+    def __init__(self, x, y, angle, num: CHARA):
+        super().__init__(x, y, angle, num) 
+        self._state = self.STATE.LAUNCH
+        clock.schedule_interval(self.change_normal, self.COUNT.LAUNCH)
+    
+    def __del__(self):
+        g.playerRemain -= 1
+
 
     def update(self):
-        if self.count > self.COUNT_LAUNCH:
-            self._state = self.STATE.CONTROLABLE
-
         if self._state==self.STATE.LAUNCH:
             self.x += 4
             return
@@ -182,8 +165,8 @@ class Player(Spclass):
 
         # 衝突判定
         hitbox = Rect((self.x-10,self.y-10), (20,20))
-        for sp in g.objects:
-            if charas[sp.num.value].is_enemy:
+        for sp in reversed(g.objects):
+            if Info.charas[sp.num].is_enemy:
                 # 隕石にぶつかるとしぼう
                 if sp.colliderect(hitbox):
                     if sp.num.value==CHARA.DEBRIS:
@@ -192,7 +175,7 @@ class Player(Spclass):
                         sp.damage()
                         self.damage()
                         self.image = 'alien_hurt.png'
-                        self.image = 'alien.png'
+                        clock.schedule_interval(self.change_normal, 1)
                         break
 
 
@@ -203,11 +186,11 @@ class EnemyShot(Spclass):
         self.speed = speed.value
 
     def update(self):
-        self.pos = spritemove(self.pos, self.angle, self.speed) # 弾の角度や速度
-        for sp in g.objects:
-            if sp.colliderect(pipe_bottom):
-                sp.hp -= 1
-                break
+        self.pos = spritemove_left(self.pos, self.angle, self.speed) # 弾の角度や速度
+        # for sp in g.objects:
+        #     if sp.colliderect(pipe_bottom):
+        #         sp.hp -= 1
+        #         break
 
 # 敵のクラス。Spclassクラスを継承
 class Enemy(Spclass):
@@ -215,9 +198,10 @@ class Enemy(Spclass):
         self.x -= 2
         self.y -= int((self.count % 200) / 100) * 2  - 1 # ジグザグ移動
         
-        if random.randrange(80) != 0: return # 敵の出現率
+        if random.randrange(80) != 0: return # 弾の出現率
         px, py = g.player.pos
-        rad = math.atan2(py - self.y, px - self.x) # 敵と自機の方角
+        # rad = math.atan2(py - self.y, px - self.x) # 敵と自機の方角
+        rad = math.atan2(self.y - py, self.x - px) # 敵と自機の方角
         newangle = math.degrees(rad) # ラジアンから角度へ変換
         newsp = EnemyShot(self.x, self.y, newangle, CHARA.ENEMY_SHOT, SPEED.SLOW)
         g.objects.append(newsp)
@@ -243,5 +227,5 @@ class Debris(Spclass):
         self.speed = random.randrange(SPEED.SLOW.value, SPEED.FAST.value, 1)
 
     def update(self):
-        self.pos = spritemove_reverse(self.pos, self.angle, self.speed) # 弾の角度や速度
+        self.pos = spritemove_left(self.pos, self.angle, self.speed)
 

@@ -1,4 +1,3 @@
-from typing import List
 import pygame
 from pygame.locals import *
 from pgzero.builtins import *
@@ -6,15 +5,21 @@ from enum import Enum
 import global_value as g
 import random
 from shooter_sub import *
+from shooter_UI import *
 import time
 from typing import Any, Dict
 
 
-class Define:
-    _subwnd: Dict[str, Any] = {
-            'image': Any,
-            'script': Any,
-    }
+
+class SCENE(Enum):
+    TITLE = auto()
+    PROLOGUE = auto()
+    DEMO = auto()
+    FIELD = auto()
+    BATTLE = auto()
+    GAMEOVER = auto()
+
+
 
 
 class BaseScene:
@@ -91,11 +96,11 @@ class TitleScene(BaseScene):
         super().handler(keyboard)
 
         if keyboard[keys.RETURN]: 
-            g.game_state = SCENE.GAME
+            g.game_state = SCENE.FIELD
             g.start = time.time()
             g.out_time = 0
-            g.currentScene.popleft()
-            g.currentScene.appendleft(FieldScene())
+            g.sceneStack.popleft()
+            g.sceneStack.appendleft(FieldScene())
 
 
 class PrologueScene(BaseScene):
@@ -110,6 +115,32 @@ class DemoScene(BaseScene):
 class FieldScene(BaseScene):
     _stars = []
 
+    def enemyEncount(self, WIDTH, HEIGHT ):
+        
+        if g.bosstimer==0:
+            pass
+            # g.objects.append(Boss(WIDTH/2, 0, 0, CHARA.ENEMY_BOSS))  # ボス出現
+        elif g.bosstimer > 0 and random.randrange(80)==0: # 敵1出現
+            y = random.randrange(HEIGHT - 200) + 100
+            g.objects.append(Enemy(WIDTH, y, 0, CHARA.ENEMY_1))
+        
+        elif g.bosstimer > 0 and random.randrange(100)==0: # 敵2出現
+            y = random.randrange(HEIGHT - 200) + 100
+            # g.objects.append(Enemy(WIDTH, y, 0, CHARA.ENEMY_2))
+        
+        elif random.randrange(200)==0: # デブリ出現
+            y = random.randrange(1, HEIGHT, 10)
+            rad = random.randrange(-60, 60, 1)
+            # g.objects.append(Debris(WIDTH, y, rad, CHARA.DEBRIS))
+        
+        else:
+            pass
+
+    def playerReveal(self, WIDTH, HEIGHT ):
+        g.player = Player(WIDTH * 1 / WIDTH, HEIGHT / 2, 0, CHARA.PLAYER)
+        g.objects.append(g.player)  # 自機をリストに格納
+
+
     def __init__(self):
         WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 
@@ -117,7 +148,7 @@ class FieldScene(BaseScene):
             pos = (random.randrange(WIDTH), random.randrange(HEIGHT))
             self._stars.append(Rect(pos,(3, 3)))
 
-        g.objects.append(g.player)  # 自機をリストに格納
+        self.playerReveal(WIDTH, HEIGHT)
 
 
     def draw(self, screen):
@@ -134,12 +165,22 @@ class FieldScene(BaseScene):
                 self._stars[i].x = WIDTH
                     
     def handler(self, event):
+        WIDTH, HEIGHT = pygame.display.get_surface().get_size()
         super().handler(event)
+        self.enemyEncount(WIDTH, HEIGHT)
 
         if event[keys.ESCAPE]: 
             g.game_state = SCENE.GAMEOVER
             g.currentScene.popleft()
             g.currentScene.appendleft(GameOverScene())
+
+        if event[keys.S]: 
+            g.termStack.appendleft(CaptionWindow(Rect( (0, 450), (600, 150) ), 'caption window'))
+
+
+class BattleScene(BaseScene):
+    def __init__(self):
+        pass
 
 
 class GameOverScene(BaseScene):
