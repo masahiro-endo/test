@@ -6,6 +6,7 @@ import global_value as g
 from typing import Any, Dict
 
 
+
 class Direction(Enum):
     UP = auto()
     DOWN = auto()
@@ -57,11 +58,4 @@ def player_isRemain()->bool:
     return res
 
 
-
-def trans_gameOver():
-    g.game_state = SCENE.GAMEOVER
-    g.out_time = time.time() - g.start # ゲームオーバーまでの時間を計算
-
-    g.sceneStack.popleft()
-    g.sceneStack.appendleft(GameOverScene())
 

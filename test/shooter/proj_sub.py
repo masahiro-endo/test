@@ -6,7 +6,7 @@ import random
 from enum import Enum, auto
 import global_value as g
 from typing import Any, Dict
-from shooter_control import *
+from proj_control import *
 
 
 

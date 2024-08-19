@@ -4,10 +4,10 @@ from pgzero.builtins import *
 from enum import Enum
 import global_value as g
 import random
-from shooter_sub import *
-from shooter_UI import *
+from proj_sub import *
 import time
 from typing import Any, Dict
+import sys
 
 
 
@@ -18,7 +18,16 @@ class SCENE(Enum):
     FIELD = auto()
     BATTLE = auto()
     GAMEOVER = auto()
+    WINDOW_OPEN = auto()
 
+
+
+def trans_gameOver():
+    g.game_state = SCENE.GAMEOVER
+    g.out_time = time.time() - g.start # ゲームオーバーまでの時間を計算
+
+    g.sceneStack.popleft()
+    g.sceneStack.appendleft(GameOverScene())
 
 
 
@@ -45,16 +54,9 @@ class BaseScene:
         screen.fill(Color('black'))
 
     def handler(self, event):
-        pass
-        # if event.type == QUIT:
-        #     pygame.quit()
-        #     sys.exit()
-
-        # if event.type == KEYDOWN:
-
-        #     if event.key == K_ESCAPE:
-        #         pygame.quit()
-        #         sys.exit()
+        if keyboard[keys.ESCAPE]:
+            pygame.quit()
+            sys.exit()
 
     def onEnter(self):
         # タイマーカウンタ初期化
@@ -171,11 +173,14 @@ class FieldScene(BaseScene):
 
         if event[keys.ESCAPE]: 
             g.game_state = SCENE.GAMEOVER
-            g.currentScene.popleft()
-            g.currentScene.appendleft(GameOverScene())
+            g.sceneStack.popleft()
+            g.sceneStack.appendleft(GameOverScene())
 
-        if event[keys.S]: 
-            g.termStack.appendleft(CaptionWindow(Rect( (0, 450), (600, 150) ), 'caption window'))
+        if event[keys.W]: 
+            g.game_state = SCENE.WINDOW_OPEN
+            g.sceneStack.popleft()
+            g.sceneStack.appendleft(WindowScene(Rect((100, 100), (300, 300)), '-caption-'))
+
 
 
 class BattleScene(BaseScene):
@@ -203,6 +208,40 @@ class GameOverScene(BaseScene):
 
         if keyboard[keys.ESCAPE]: 
             g.game_state = SCENE.TITLE
-            g.currentScene.popleft()
-            g.currentScene.appendleft(TitleScene())
+            g.sceneStack.popleft()
+            g.sceneStack.appendleft(TitleScene())
+
+
+
+class WindowScene(BaseScene):
+    EDGE_WIDTH = 2
+    _caption = ''
+
+    def __init__(self, rect, caption):
+        linewidth = 0
+
+        self.surf = pygame.Surface( (rect.width, rect.height) )
+        self.surf.fill((255, 255, 255))
+        self.rect = self.surf.get_rect()
+
+        self.inner_rect = self.rect.inflate(-self.EDGE_WIDTH * 2, -self.EDGE_WIDTH * 2)
+        pygame.draw.rect(self.surf, pygame.Color('white'), self.rect, linewidth)
+        pygame.draw.rect(self.surf, pygame.Color('black'), self.inner_rect, linewidth)
+        self.rect = rect
+
+        self._caption = caption
+
+    def update(self):
+        pass
+
+    def draw(self, screen):
+        screen.blit(self.surf, (self.rect.left, self.rect.top) )
+        screen.draw.text("{self._caption}\n", \
+                         left=self.rect.left,top=self.rect.top,fontsize=64,color='YELLOW')
+
+    def handler(self, keyboard):
+        pass
+
+
+
 
