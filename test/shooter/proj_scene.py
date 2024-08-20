@@ -122,18 +122,19 @@ class FieldScene(BaseScene):
         if g.bosstimer==0:
             pass
             # g.objects.append(Boss(WIDTH/2, 0, 0, CHARA.ENEMY_BOSS))  # ボス出現
-        elif g.bosstimer > 0 and random.randrange(80)==0: # 敵1出現
+
+        elif g.bosstimer > 0 and random.randrange(200)==0: # 敵1出現
             y = random.randrange(HEIGHT - 200) + 100
             g.objects.append(Enemy(WIDTH, y, 0, CHARA.ENEMY_1))
         
-        elif g.bosstimer > 0 and random.randrange(100)==0: # 敵2出現
+        elif g.bosstimer > 0 and random.randrange(400)==0: # 敵2出現
             y = random.randrange(HEIGHT - 200) + 100
-            # g.objects.append(Enemy(WIDTH, y, 0, CHARA.ENEMY_2))
+            g.objects.append(Enemy(WIDTH, y, 0, CHARA.ENEMY_2))
         
-        elif random.randrange(200)==0: # デブリ出現
+        elif random.randrange(600)==0: # デブリ出現
             y = random.randrange(1, HEIGHT, 10)
             rad = random.randrange(-60, 60, 1)
-            # g.objects.append(Debris(WIDTH, y, rad, CHARA.DEBRIS))
+            g.objects.append(Debris(WIDTH, y, rad, CHARA.DEBRIS))
         
         else:
             pass

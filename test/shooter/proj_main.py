@@ -62,6 +62,13 @@ def draw():
         for sp in g.objects:
             sp.draw()
 
+            ### debug begin
+            if not Info.charas[sp.num].is_enemy:
+                screen.draw.rect(sp.hitbox, pygame.Color('red'))
+            ### debug end
+
+
+
 
 ##### Pygame zeroのメイン関数とも言うべきupdata関数
 # 文末当たりのpgzrun.go()実行により、この関数がループすることになる。
