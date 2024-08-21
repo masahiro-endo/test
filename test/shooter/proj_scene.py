@@ -4,7 +4,7 @@ from pgzero.builtins import *
 from enum import Enum
 import global_value as g
 import random
-from proj_sub import *
+from proj_actor import *
 import time
 from typing import Any, Dict
 import sys

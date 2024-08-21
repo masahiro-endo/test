@@ -4,7 +4,7 @@ from collections import deque
 import os
 import sys
 import global_value as g
-from proj_sub import *
+from proj_actor import *
 from proj_scene import *
 from proj_control import *
 os.chdir(os.path.dirname(__file__))

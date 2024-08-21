@@ -1,24 +1,46 @@
 import pygame
 from pygame.locals import *
-import os
-import sys
-import os
-os.chdir(os.path.dirname(__file__))
+from pgzero.builtins import *
+from enum import Enum, auto
+import global_value as g
+from typing import Any, Dict
 
 
 
-class Python(pygame.sprite.Sprite):
-    """パイソン"""
+class CHARA(Enum):
+    PLAYER = auto()
+    ENEMY_1 = auto()
+
+# キャラクター情報
+class CharaData:
+    def __init__(self, filename, hp ,enemy):
+        self.imagename = filename  # 画像ファイル名
+        self.hp = hp               # ヒットポイント
+        self.is_enemy = enemy      # 敵フラグ True
+
+class AInfo:
+    charas: Dict[Enum, Any] = {
+            CHARA.PLAYER     : CharaData,
+            CHARA.ENEMY_1    : CharaData,
+    }
+
+AInfo.charas[CHARA.PLAYER]      = CharaData("python.png", 3, False)
+AInfo.charas[CHARA.ENEMY_1]     = CharaData("fly_fly1.png", 1, True)
+
+
+class Player(Actor):
+    # クラス変数
     MOVE_SPEED = 2.5    # 移動速度
     JUMP_SPEED = 6.0    # ジャンプの初速度
     GRAVITY = 0.2       # 重力加速度
     MAX_JUMP_COUNT = 2  # ジャンプ段数の回数
 
-    def __init__(self, pos, blocks):
-        pygame.sprite.Sprite.__init__(self, self.containers)
-        self.image = self.right_image
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = pos[0], pos[1]  # 座標設定
+    def __init__(self, x, y, imgname, blocks):
+        Actor.__init__(self, imgname, center=(x, y))
+        # インスタンス変数
+        self.count = 0           # カウンタ
+        self.rect = Rect(x, y, self.width, self.height)
+
         self.blocks = blocks  # 衝突判定用
 
         # ジャンプ回数
@@ -34,22 +56,18 @@ class Python(pygame.sprite.Sprite):
         self.on_floor = False
 
     def update(self):
-        """スプライトの更新"""
-        # キー入力取得
-        pressed_keys = pygame.key.get_pressed()
+        WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 
-        # 左右移動
-        if pressed_keys[K_RIGHT]:
-            self.image = self.right_image
-            self.fpvx = self.MOVE_SPEED
-        elif pressed_keys[K_LEFT]:
-            self.image = self.left_image
+        if keyboard.left :
+            self.image = AInfo.charas[CHARA.PLAYER].imagename
             self.fpvx = -self.MOVE_SPEED
+        elif keyboard.right:
+            self.image = 'python_right.png'
+            self.fpvx = self.MOVE_SPEED
         else:
             self.fpvx = 0.0
 
-        # ジャンプ
-        if pressed_keys[K_SPACE]:
+        if keyboard.space:
             if self.on_floor:
                 self.fpvy = - self.JUMP_SPEED  # 上向きに初速度を与える
                 self.on_floor = False
@@ -69,9 +87,14 @@ class Python(pygame.sprite.Sprite):
         # スプライトを動かすにはself.rectの更新が必要！
         self.rect.x = int(self.fpx)
         self.rect.y = int(self.fpy)
+        self.x = self.fpx
+        self.y = self.fpy
 
         # ボタンのジャンプキーの状態を記録
-        self.prev_button = pressed_keys[K_SPACE]
+        self.prev_button = keyboard[keys.SPACE]
+
+
+
 
     def collision_x(self):
         """X方向の衝突判定処理"""
@@ -130,10 +153,14 @@ class Python(pygame.sprite.Sprite):
                 # 衝突ブロックがないなら床の上にいない
                 self.on_floor = False
 
-class Block(pygame.sprite.Sprite):
+
+class Block(Actor):
     """ブロック"""
-    def __init__(self, pos):
-        pygame.sprite.Sprite.__init__(self, self.containers)
-        self.rect = self.image.get_rect()
-        self.rect.topleft = pos
+    def __init__(self, x, y, imgname):
+        Actor.__init__(self, imgname, center=(x, y))
+        self.rect = Rect(x, y, self.width, self.height)
+
+    def update(self):
+        pass
+
 
