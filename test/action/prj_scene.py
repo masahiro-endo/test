@@ -1,4 +1,3 @@
-import pgzrun
 from pgzero.builtins import *
 import pygame
 from pygame.locals import *
@@ -66,10 +65,15 @@ class Map:
         self.height = self.row * self.GS
         fp.close()
 
+        # マップサーフェイスを作成
+        # self.surface = pygame.Surface((self.col*self.GS, self.row*self.GS)).convert()
+        # source = pygame.image.load(SInfo.Params[FLOOR.BLOCK].filename)
+
         # マップからスプライトを作成
         for i in range(self.row):
             for j in range(self.col):
                 if map[i][j] == 'B':
+                    # self.surface.blit(source, (j*self.GS, i*self.GS))
                     self.blocks.append(Block(j*self.GS, i*self.GS, SInfo.Params[FLOOR.BLOCK].filename))
 
 
@@ -205,7 +209,8 @@ class Floor01_Scene(BaseScene):
 
         # マップの一部を画面に描画
         # screen.blit(self.map.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
-        screen.blit(screen.surface, [0, 0], [offsetx, offsety, WIDTH, HEIGHT])
+        self.map.surface = screen.surface.copy()
+        screen.surface.blit(self.map.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
 
 
     def update(self):
