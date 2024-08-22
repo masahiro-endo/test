@@ -158,6 +158,8 @@ class Block(Actor):
     """ブロック"""
     def __init__(self, x, y, imgname):
         Actor.__init__(self, imgname, center=(x, y))
+        self.prevx = x
+        self.prevy = y
         self.rect = Rect(x, y, self.width, self.height)
 
     def update(self):

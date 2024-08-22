@@ -68,10 +68,12 @@ class BaseScene:
 
 
 class TitleScene(BaseScene):
-    _stars = []
+    # クラス変数
 
     def __init__(self, size: tuple):
         WIDTH, HEIGHT = size
+        # インスタンス変数
+        self._stars = []
 
         for i in range(10):
             pos = (random.randrange(WIDTH), random.randrange(HEIGHT))

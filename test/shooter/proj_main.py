@@ -20,12 +20,14 @@ class Game:
             SVGA = (800, 600)
             XGA = (1024, 768)
         
+        @staticmethod
         def is_dispay_area(pos: tuple) -> bool:
             x, y = pos
             if (0 < x < WIDTH) and (0 < y < HEIGHT):
                 return True
             return False
 
+    @staticmethod
     def init():
 
         g.objects = []  # スプライトのリスト
@@ -109,8 +111,8 @@ def update():
             g.objects.remove(sp)  # 画面外のスプライトを消去
             continue
 
-    if player_isDead():
-        if player_isRemain():
+    if Player.isDead():
+        if Player.isRemain():
             g.sceneStack[0].playerReveal(WIDTH, HEIGHT)
             return
 

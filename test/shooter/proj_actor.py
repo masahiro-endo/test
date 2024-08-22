@@ -101,7 +101,7 @@ class Shot(Spclass):
 
     def update(self):
         # 弾の弾道や速度を決める(関数に入れて戻り値)
-        self.pos = spritemove_right(self.pos, self.angle, self.speed) 
+        self.pos = Ctl.spritemove_right(self.pos, self.angle, self.speed) 
 
         # 敵との衝突範囲を判定
         self.hitbox = Rect((self.x-15, self.y-15), (30, 30))
@@ -141,6 +141,20 @@ class Player(Spclass):
     def change_normal(self):
         self._state = self.STATE.NORMAL
         self.image = 'alien.png'
+
+    @staticmethod
+    def isDead()->bool:
+        res = False
+        if not (g.player in g.objects):
+            res = True
+        return res
+
+    @staticmethod
+    def isRemain()->bool:
+        res = False
+        if g.playerRemain > 0:
+            res = True
+        return res
 
     def __init__(self, x, y, angle, num: CHARA):
         super().__init__(x, y, angle, num) 
@@ -201,7 +215,7 @@ class EnemyShot(Spclass):
         self.speed = speed.value
 
     def update(self):
-        self.pos = spritemove_left(self.pos, self.angle, self.speed) # 弾の角度や速度
+        self.pos = Ctl.spritemove_left(self.pos, self.angle, self.speed) # 弾の角度や速度
 
 
 # 敵のクラス。Spclassクラスを継承
@@ -266,5 +280,5 @@ class Debris(Spclass):
         self.speed = random.randrange(SPEED.SLOW.value, SPEED.FAST.value, 1)
 
     def update(self):
-        self.pos = spritemove_left(self.pos, self.angle, self.speed)
+        self.pos = Ctl.spritemove_left(self.pos, self.angle, self.speed)
 

@@ -42,7 +42,7 @@ class Map:
         self.load(filename)
 
         # マップサーフェイスを作成
-        self.surface = pygame.Surface((self.col*self.GS, self.row*self.GS)).convert()
+        # self.surface = pygame.Surface((self.col*self.GS, self.row*self.GS)).convert()
 
     def draw(self, screen):
         for sp in self.blocks:
@@ -66,14 +66,15 @@ class Map:
         fp.close()
 
         # マップサーフェイスを作成
-        # self.surface = pygame.Surface((self.col*self.GS, self.row*self.GS)).convert()
-        # source = pygame.image.load(SInfo.Params[FLOOR.BLOCK].filename)
+        self.surface = pygame.Surface((self.col*self.GS, self.row*self.GS)).convert()
+        source = pygame.image.load(SInfo.Params[FLOOR.BLOCK].filename)
 
         # マップからスプライトを作成
         for i in range(self.row):
             for j in range(self.col):
                 if map[i][j] == 'B':
-                    # self.surface.blit(source, (j*self.GS, i*self.GS))
+                    self.surface.blit(source, (j*self.GS, i*self.GS))
+                    pygame.draw.rect(self.surface, pygame.Color('red'),Rect(j*self.GS, i*self.GS,self.GS, self.GS))
                     self.blocks.append(Block(j*self.GS, i*self.GS, SInfo.Params[FLOOR.BLOCK].filename))
 
 
@@ -188,9 +189,6 @@ class Floor01_Scene(BaseScene):
     def draw(self, screen):
         super().draw(screen)
 
-        self.player.draw()
-        self.map.draw(screen)
-
         WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 
         # オフセッとに基づいてマップの一部を画面に描画
@@ -209,15 +207,24 @@ class Floor01_Scene(BaseScene):
 
         # マップの一部を画面に描画
         # screen.blit(self.map.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
-        self.map.surface = screen.surface.copy()
+        # self.map.surface = screen.surface.copy()
         screen.surface.blit(self.map.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
+
+        for sp in self.map.blocks:
+            sp.x = sp.prevx - offsetx
+            sp.y = sp.prevy - offsety
+            sp.rect = Rect(sp.x, sp.y, sp.width, sp.height)
+
+
+        self.map.draw(screen)
+        self.player.draw()
 
 
     def update(self):
         super().update()
 
-        self.player.update()
         self.map.update()
+        self.player.update()
 
     def handler(self, event):
         super().handler(event)
