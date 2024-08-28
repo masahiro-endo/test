@@ -1,16 +1,33 @@
+import pgzrun
+from pgzero.builtins import *
 import pygame
 from pygame.locals import *
 from UI import *
 import os
+import sys
 import struct
 import codecs
+from UI import StartWindow
 import control 
+import global_value as g
 from actor import *
+from UI import *
+from enum import IntEnum, Enum, auto
+from typing import Any, Dict
+
 
 
 GS = 32
 
 
+class SCENE(Enum):
+    TITLE = auto()
+    PROLOGUE = auto()
+    DEMO = auto()
+    FIELD = auto()
+    BATTLE = auto()
+    GAMEOVER = auto()
+    WINDOW_OPEN = auto()
 
 
 
@@ -248,39 +265,65 @@ class Object:
 
 
 
+class BaseScene:
+
+    # 経過時間
+    tick = 0
+
+    # stateStackへの参照
+    stateStack = None
+
+    # 描画の座標オフセット
+    DRAW_OFFSET_X = 0
+    DRAW_OFFSET_Y = 0
 
 
-
-
-class Title:
-    """タイトル画面"""
-    START, CONTINUE, EXIT = 0, 1, 2
-    def __init__(self, msg_engine):
-        self.msg_engine = msg_engine
-        self.title_img = control.Ctl.load_image("data", "python_quest.png", -1)
-        self.cursor_img = control.Ctl.load_image("data", "cursor2.png", -1)
-        self.menu = self.START
-        self.play_bgm()
-    def update(self):
+    def __init__(self):
         pass
+
+    def update(self):
+        self.tick += 1
+
+    def draw(self, screen: pygame.Surface):
+        screen.fill(Color('black'))
+
+    def handler(self, event):
+        if keyboard[keys.ESCAPE]:
+            pygame.quit()
+            sys.exit()
+
+    def onEnter(self):
+        # タイマーカウンタ初期化
+        self.tick = 0
+
+    def onExit(self):
+        pass
+
+
+
+
+class TitleScene(BaseScene):
+
+    def __init__(self):
+        self.title = Actor("python_quest.png", topleft=(20,60))
+        self.menu = StartWindow(Rect(200, 200, 200, 200))
+        self.menu.show()
+
+    def update(self):
+        super().update()
+        self.menu.update()
+
     def draw(self, screen):
-        screen.fill((0,0,128))
-        # タイトルの描画
-        screen.blit(self.title_img, (20,60))
-        # メニューの描画
-        self.msg_engine.draw_string(screen, (260,240), "ＳＴＡＲＴ")
-        self.msg_engine.draw_string(screen, (260,280), "ＣＯＮＴＩＮＵＥ")
-        self.msg_engine.draw_string(screen, (260,320), "ＥＸＩＴ")
-        # クレジットの描画
-        self.msg_engine.draw_string(screen, (130,400), "２００８　ＰＹＴＨＯＮでゲームつくりますがなにか？")
-        # メニューカーソルの描画
-        if self.menu == self.START:
-            screen.blit(self.cursor_img, (240, 240))
-        elif self.menu == self.CONTINUE:
-            screen.blit(self.cursor_img, (240, 280))
-        elif self.menu == self.EXIT:
-            screen.blit(self.cursor_img, (240, 320))
+        super().draw(screen)
+        self.menu.draw(screen)
+
+    def handler(self, keyboard):
+        super().handler(keyboard)
+        self.menu.handler(keyboard)
+
+
     def play_bgm(self):
+        pass
         bgm_file = "title.mp3"
         bgm_file = os.path.join("bgm", bgm_file)
         pygame.mixer.music.load(bgm_file)
@@ -288,6 +331,168 @@ class Title:
 
 
 
+class AvatorTool():
+
+    class JOB(IntEnum):
+        SWORDMAN = auto()
+        WHITECAT = auto()
+
+    class Parameter:
+        def __init__(self, filename):
+            self.filename = filename
+
+    Params: Dict[Enum, Any] = {
+            JOB.SWORDMAN    : Parameter,
+            JOB.WHITECAT    : Parameter,
+    }
+
+    Params[JOB.SWORDMAN]    = Parameter("/images/swordman_male.png")
+    Params[JOB.WHITECAT]    = Parameter("/images/white_cat.png")
+
+    @staticmethod
+    def get_charachip(job)->Any:
+        res = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
+        image = pygame.image.load(f"{os.path.dirname(__file__)}{AvatorTool.Params[job].filename}").convert()
+
+        for y in range(4):
+            for x in range(4):
+                res[y][x] = image.subsurface(Rect(x * GS, y * GS, GS, GS))
+    
+        return res
+
+
+
+class Avator():
+    class LOOK(IntEnum):
+        DOWN = 0
+        LEFT = 1
+        RIGHT = 2
+        UP = 3
+        LENGTH = 4
+
+    class WALK(IntEnum):
+        NORmAL = 5
+
+    def __init__(self):
+
+        self.objects = []
+        self.anime=[]
+        self.anime = AvatorTool.get_charachip(AvatorTool.JOB.WHITECAT)
+
+        self.imgnum = 0
+        self.direction = self.LOOK.DOWN
+
+        self.pos = 0, 0
+        self.spd = self.WALK.NORmAL
+        
+    def turn(self, direction):
+            if not self.direction==direction:
+                self.direction = direction
+                self.imgno = 0
+            else:
+                x, y = self.pos
+                if self.direction==self.LOOK.UP:
+                    y -= self.spd
+                if self.direction==self.LOOK.DOWN:
+                    y += self.spd
+                if self.direction==self.LOOK.LEFT:
+                    x -= self.spd
+                if self.direction==self.LOOK.RIGHT:
+                    x += self.spd
+                self.pos = x, y
+                self.imgnum = (self.imgnum + 1) % self.LOOK.LENGTH
+
+
+class MapTool():
+
+    class MAP(IntEnum):
+        TOWN = 101
+
+    class OBJECT(IntEnum):
+        FOREST = auto()
+        STONEFLOOR = auto()
+
+    class Parameter:
+        def __init__(self, filename):
+            self.filename = filename
+
+    Params: Dict[Enum, Any] = {
+            MAP.TOWN             : Parameter,
+            OBJECT.FOREST        : Parameter,
+            OBJECT.STONEFLOOR    : Parameter,
+    }
+
+    Params[MAP.TOWN]             = Parameter("/data/test.map")
+    Params[OBJECT.FOREST]        = Parameter("/mapchip/forest.png")
+    Params[OBJECT.STONEFLOOR]    = Parameter("/mapchip/stone_floor.png")
+
+    @staticmethod
+    def loadmapchip(objno)->Any:
+        image = pygame.image.load(f"{os.path.dirname(__file__)}{MapTool.Params[objno].filename}")
+        return image
+
+    @staticmethod
+    def loadmap(mapno)->Any:
+        GS = 32
+        map = []
+        fp = open(f"{os.path.dirname(__file__)}{MapTool.Params[mapno].filename}", "r")
+        for line in fp:
+            line = line.rstrip()  # 改行除去
+            map.append(list(line))
+            row = len(map)
+            col = len(map[0])
+        width = col * GS
+        height = row * GS
+        fp.close()
+
+        # マップサーフェイスを作成
+        surface = pygame.Surface((col * GS, row * GS)).convert()
+
+        # マップからスプライトを作成
+        for i in range(row):
+            for j in range(col):
+                if map[i][j] == 'B':
+                    source = MapTool.loadmapchip(MapTool.OBJECT.FOREST)
+                else:
+                    source = MapTool.loadmapchip(MapTool.OBJECT.STONEFLOOR)
+                surface.blit(source, (j * GS, i * GS))
+
+        return surface
+
+
+class FieldScene(BaseScene):
+
+    def __init__(self):
+        self.avator = Avator()
+        self.surface = MapTool.loadmap(MapTool.MAP.TOWN)
+
+    def update(self):
+        super().update()
+
+    def draw(self, screen):
+        super().draw(screen)
+        WIDTH, HEIGHT = pygame.display.get_surface().get_size()
+
+        screen.surface.blit(self.surface, (0,0), (0, 0, WIDTH, HEIGHT))
+        screen.blit(self.avator.anime[self.avator.direction][self.avator.imgnum], self.avator.pos)
+
+    def handler(self, keyboard):
+        super().handler(keyboard)
+        x, y = self.avator.pos
+
+        if keyboard[keys.RETURN]: 
+            pass
+        if keyboard[keys.DOWN]:
+            self.avator.turn(self.avator.LOOK.DOWN)
+        if keyboard[keys.LEFT]:
+            self.avator.turn(self.avator.LOOK.LEFT)
+        if keyboard[keys.RIGHT]:
+            self.avator.turn(self.avator.LOOK.RIGHT)
+        if keyboard[keys.UP]:
+            self.avator.turn(self.avator.LOOK.UP)
+
+        if keyboard[keys.SPACE]: 
+            pass
 
 
 

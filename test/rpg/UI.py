@@ -1,9 +1,14 @@
 
+import pgzrun
+from pgzero.builtins import *
 import pygame
 from pygame.locals import *
 import control 
 import codecs
 import os
+from scene import *
+from enum import IntEnum, Enum, auto
+from typing import Any, Dict
 
 
 
@@ -12,22 +17,29 @@ import os
 
 
 class Window:
-    """ウィンドウの基本クラス"""
     EDGE_WIDTH = 4  # 白枠の幅
+
     def __init__(self, rect):
         self.rect = rect  # 一番外側の白い矩形
-        self.inner_rect = self.rect.inflate(-self.EDGE_WIDTH*2, -self.EDGE_WIDTH*2)  # 内側の黒い矩形
-        self.is_visible = False  # ウィンドウを表示中か？
+        self.inner_rect = self.rect.inflate(-self.EDGE_WIDTH * 2, -self.EDGE_WIDTH * 2)  # 内側の黒い矩形
+        self.is_visible = False
+
+    def update(self):
+        pass
+
     def draw(self, screen):
-        """ウィンドウを描画"""
-        if self.is_visible == False: return
-        pygame.draw.rect(screen, (255,255,255), self.rect, 0)
-        pygame.draw.rect(screen, (0,0,0), self.inner_rect, 0)
+        if not self.is_visible: 
+            return
+        screen.draw.rect(self.rect, pygame.Color('black'))
+        screen.draw.rect(self.inner_rect, pygame.Color('white'))
+
+    def handler(self, keyboard):
+        pass
+    
     def show(self):
-        """ウィンドウを表示"""
         self.is_visible = True
+
     def hide(self):
-        """ウィンドウを隠す"""
         self.is_visible = False
 
 class MessageWindow(Window):
@@ -125,6 +137,7 @@ class MessageWindow(Window):
             self.next_flag = False
             return True
 
+'''
 class CommandWindow(Window):
     LINE_HEIGHT = 8  # 行間の大きさ
     TALK, STATUS, EQUIPMENT, DOOR, SPELL, ITEM, TACTICS, SEARCH = range(0, 8)
@@ -158,8 +171,86 @@ class CommandWindow(Window):
         """オーバーライド"""
         self.command = self.TALK  # 追加
         self.is_visible = True
+'''
 
 
+class StartWindow(Window):
+
+    class SELECT(IntEnum):
+        START = 0
+        CONTINUE = 1
+        EXIT = 2
+        LENGTH = 3
+
+    class Parameter:
+        def __init__(self, curpos, strpos ,caption ):
+            self.curpos = curpos
+            self.strpos = strpos
+            self.caption = caption
+
+    Params: Dict[Enum, Any] = {
+            SELECT.START    : Parameter,
+            SELECT.CONTINUE : Parameter,
+            SELECT.EXIT     : Parameter,
+    }
+
+    Params[SELECT.START]     = Parameter((240, 240), (260, 240),'START')
+    Params[SELECT.CONTINUE]  = Parameter((240, 280), (260, 280),'CONTINUE')
+    Params[SELECT.EXIT]      = Parameter((240, 320), (260, 320),'EXIT')
+
+
+    def __init__(self, rect):
+        super().__init__(rect)
+        self.is_visible = super().__dict__['is_visible']
+        self.select = self.SELECT.START
+        self.cursor = Actor("cursor2.png", self.Params[self.SELECT.START].curpos)
+
+    def update(self):
+        super().update()
+
+        if self.select == 0:
+            self.cursor.pos = self.Params[0].curpos
+        elif self.select == 1:
+            self.cursor.pos = self.Params[1].curpos
+        elif self.select == 2:
+            self.cursor.pos = self.Params[2].curpos
+
+    def draw(self, screen):
+        super().draw(screen)
+
+        # メニューの描画
+        for i in range(self.SELECT.LENGTH):
+            screen.draw.text(self.Params[i].caption , \
+                            self.Params[i].strpos, fontsize=24, color='WHITE')
+
+        self.cursor.draw()
+
+    def handler(self, keyboard):
+        super().handler(keyboard)
+
+        if keyboard[keys.RETURN]: 
+            if self.select == self.SELECT.START:
+                g.game_state = SCENE.FIELD
+                # g.map.create("field")  # フィールドマップへ
+
+                g.sceneStack.popleft()
+                g.sceneStack.appendleft(FieldScene())
+
+            elif self.select == self.SELECT.CONTINUE:
+                pass
+            elif self.select == self.SELECT.EXIT:
+                pygame.quit()
+                sys.exit()
+
+        if keyboard[keys.UP]:
+            self.select = self.SELECT.LENGTH - 1 if (self.select - 1) < 0 else self.select - 1
+
+        if keyboard[keys.DOWN]:
+            self.select = (self.select + 1) % self.SELECT.LENGTH
+
+
+
+'''
 class MessageEngine:
     FONT_WIDTH = 16
     FONT_HEIGHT = 22
@@ -200,4 +291,4 @@ class MessageEngine:
             kana, x, y, w, h = d[0], int(d[1]), int(d[2]), int(d[3]), int(d[4])
             self.kana2rect[kana] = Rect(x, y, w, h)
         fp.close()
-
+'''

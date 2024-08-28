@@ -26,6 +26,7 @@ class Character:
         self.direction = dir  # 向き
         self.movetype = movetype  # 移動タイプ
         self.message = message  # メッセージ
+
     def update(self, map):
         """キャラクター状態を更新する。
         mapは移動可能かの判定に必要。"""

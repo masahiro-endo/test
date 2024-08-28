@@ -2,7 +2,7 @@ import pygame
 import os
 from pygame.locals import *
 from actor import *
-from screen import *
+from scene import *
 
 
 GS = 32
@@ -13,6 +13,7 @@ class Ctl:
 
     @staticmethod
     def load_image(dir, file, colorkey=None)->None:
+        dir = os.path.join(os.path.dirname(__file__), dir)
         file = os.path.join(dir, file)
         try:
             image = pygame.image.load(file)

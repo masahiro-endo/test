@@ -1,20 +1,20 @@
 #!/usr/bin/env python
-import pygame
-from pygame.locals import *
-import codecs
-import os
-import random
-import struct
+import pgzrun
+from pgzero.builtins import *
+from collections import deque
 from actor import *
 from control import *
-from screen import *
+from scene import *
 from UI import *
 import global_value as g
 import sys
+import os
 os.chdir(os.path.dirname(__file__))
+sys.path.append(os.path.dirname(__file__))
 
 
-SCR_RECT = Rect(0, 0, 640, 480)
+
+'''
 GS = 32
 DOWN,LEFT,RIGHT,UP = 0,1,2,3
 STOP, MOVE = 0, 1  # 移動タイプ
@@ -22,9 +22,122 @@ PROB_MOVE = 0.005  # 移動確率
 PROB_ENCOUNT = 0.05  # エンカウント確率
 TRANS_COLOR = (190,179,145)  # マップチップの透明色
 
-g.sounds = {}  # サウンド
-
 TITLE, FIELD, TALK, COMMAND, BATTLE_INIT, BATTLE_COMMAND, BATTLE_PROCESS = range(7)
+'''
+DOWN,LEFT,RIGHT,UP = 0,1,2,3
+
+
+
+class Game:
+    class Setting:
+        class DisplayResolution():
+            VGA = (640, 480)
+            SVGA = (800, 600)
+            XGA = (1024, 768)
+        
+        def is_dispay_area(pos: tuple) -> bool:
+            x, y = pos
+            if (0 < x < WIDTH) and (0 < y < HEIGHT):
+                return True
+            return False
+
+    def init():
+
+        g.objects = []  # スプライトのリスト
+        g.player = None
+        g.game_state = SCENE.TITLE
+
+        g.sceneStack = deque()
+        g.sceneStack.appendleft(TitleScene())
+
+        g.mainDir = os.path.dirname(__file__)
+        g.party = Party()
+        '''
+        player1 = Player("swordman_female", (3,5), DOWN, True, g.party)
+        player2 = Player("elf_female2", (3,4), DOWN, False, g.party)
+        player3 = Player("priestess", (3,3), DOWN, False, g.party)
+        player4 = Player("magician_female", (3,2), DOWN, False, g.party)
+        g.party.add(player1)
+        g.party.add(player2)
+        g.party.add(player3)
+        g.party.add(player4)
+        '''
+        # マップの作成
+        # g.map = Map("field", g.party)
+        
+
+WIDTH, HEIGHT = Game.Setting.DisplayResolution.VGA
+
+
+
+
+
+
+def draw():
+    screen.clear()
+
+    for scene in reversed(g.sceneStack):
+        if scene is None:
+            continue
+        scene.draw(screen)
+    
+    if g.game_state==SCENE.TITLE:
+        pass
+    else:
+        for sp in g.objects:
+            sp.draw()
+
+
+
+def update():
+    
+    for scene in reversed(g.sceneStack):
+        if scene is None:
+            continue
+        scene.update()
+        scene.handler(keyboard)
+
+    if g.game_state==SCENE.TITLE:
+        pass        
+        return
+
+    elif g.game_state==SCENE.GAMEOVER:
+        pass
+        return
+
+    elif g.game_state==SCENE.WINDOW_OPEN:
+        pass
+        return
+    else:
+        pass
+
+    for sp in reversed(g.objects):
+        sp.update()
+        sp.count+=1
+
+        if sp.hp<=0:
+            g.objects.remove(sp)  # 耐久値ゼロのスプライトを消去
+            continue
+        
+        if not Game.Setting.is_dispay_area(sp.pos):
+            g.objects.remove(sp)  # 画面外のスプライトを消去
+            continue
+
+
+
+
+
+
+
+Game.init()
+pgzrun.go()
+
+
+
+
+
+
+
 
 
 class PyRPG:
@@ -56,13 +169,14 @@ class PyRPG:
         # コマンドウィンドウ
         self.cmdwnd = CommandWindow(Rect(16,16,216,160), self.msg_engine)
         # タイトル画面
-        self.title = Title(self.msg_engine)
+        self.title = TitleScene(self.msg_engine)
         # 戦闘画面
         self.battle = Battle(self.msgwnd, self.msg_engine)
         # メインループを起動
         global game_state
         game_state = TITLE
         self.mainloop()
+
     def mainloop(self):
         """メインループ"""
         clock = pygame.time.Clock()
@@ -72,6 +186,7 @@ class PyRPG:
             self.render()             # ゲームオブジェクトのレンダリング
             pygame.display.update()  # 画面に描画
             self.check_event()        # イベントハンドラ
+
     def update(self):
         """ゲーム状態の更新"""
         global game_state
@@ -85,6 +200,7 @@ class PyRPG:
         elif game_state == BATTLE_INIT or game_state == BATTLE_COMMAND or game_state == BATTLE_PROCESS:
             self.battle.update()
             self.msgwnd.update()
+
     def render(self):
         """ゲームオブジェクトのレンダリング"""
         global game_state
@@ -100,6 +216,7 @@ class PyRPG:
         elif game_state in (BATTLE_INIT, BATTLE_COMMAND, BATTLE_PROCESS):
             self.battle.draw(self.screen)
             self.msgwnd.draw(self.screen)
+
     def check_event(self):
         """イベントハンドラ"""
         global game_state
@@ -112,7 +229,7 @@ class PyRPG:
                 sys.exit()
             # 表示されているウィンドウに応じてイベントハンドラを変更
             if game_state == TITLE:
-                self.title_handler(event)
+                pass
             elif game_state == FIELD:
                 self.field_handler(event)
             elif game_state == COMMAND:
@@ -125,27 +242,7 @@ class PyRPG:
                 self.battle_cmd_handler(event)
             elif game_state == BATTLE_PROCESS:
                 self.battle_proc_handler(event)
-    def title_handler(self, event):
-        """タイトル画面のイベントハンドラ"""
-        global game_state
-        if event.type == KEYUP and event.key == K_UP:
-            self.title.menu -= 1
-            if self.title.menu < 0:
-                self.title.menu = 0
-        elif event.type == KEYDOWN and event.key == K_DOWN:
-            self.title.menu += 1
-            if self.title.menu > 2:
-                self.title.menu = 2
-        if event.type == KEYDOWN and event.key == K_SPACE:
-            # # sounds["pi"].play()
-            if self.title.menu == Title.START:
-                game_state = FIELD
-                self.map.create("field")  # フィールドマップへ
-            elif self.title.menu == Title.CONTINUE:
-                pass
-            elif self.title.menu == Title.EXIT:
-                pygame.quit()
-                sys.exit()
+
     def field_handler(self, event):
         """フィールド画面のイベントハンドラ"""
         global game_state
@@ -154,6 +251,7 @@ class PyRPG:
             # # sounds["pi"].play()
             self.cmdwnd.show()
             game_state = COMMAND
+
     def cmd_handler(self, event):
         """コマンドウィンドウが開いているときのイベントハンドラ"""
         global game_state
@@ -236,11 +334,13 @@ class PyRPG:
                 else:
                     self.msgwnd.set("しかし　なにもみつからなかった。")
                     game_state = TALK
+
     def calc_offset(self, player):
         """オフセットを計算する"""
         offsetx = int(player.rect.topleft[0] - SCR_RECT.width/2)
         offsety = int(player.rect.topleft[1] - SCR_RECT.height/2)
         return offsetx, offsety
+    
     def show_info(self):
         """デバッグ情報を表示"""
         player = self.party.member[0]  # 先頭プレイヤー
