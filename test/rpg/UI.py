@@ -3,12 +3,16 @@ import pgzrun
 from pgzero.builtins import *
 import pygame
 from pygame.locals import *
-import control 
 import codecs
 import os
-from scene import *
 from enum import IntEnum, Enum, auto
 from typing import Any, Dict
+from collections import deque
+import json
+
+import global_value as g
+from scene.scene import *
+from UIControl import *
 
 
 
@@ -16,19 +20,19 @@ from typing import Any, Dict
 
 
 
-class Window:
+class BaseWindow:
     EDGE_WIDTH = 4  # 白枠の幅
 
     def __init__(self, rect):
         self.rect = rect  # 一番外側の白い矩形
         self.inner_rect = self.rect.inflate(-self.EDGE_WIDTH * 2, -self.EDGE_WIDTH * 2)  # 内側の黒い矩形
-        self.is_visible = False
+        self.visible = False
 
     def update(self):
         pass
 
     def draw(self, screen):
-        if not self.is_visible: 
+        if not self.is_visible(): 
             return
         screen.draw.rect(self.rect, pygame.Color('black'))
         screen.draw.rect(self.inner_rect, pygame.Color('white'))
@@ -37,144 +41,19 @@ class Window:
         pass
     
     def show(self):
-        self.is_visible = True
+        self.visible = True
 
     def hide(self):
-        self.is_visible = False
+        self.visible = False
 
-class MessageWindow(Window):
-    """メッセージウィンドウ"""
-    MAX_CHARS_PER_LINE = 20    # 1行の最大文字数
-    MAX_LINES_PER_PAGE = 3     # 1行の最大行数（4行目は▼用）
-    MAX_CHARS_PER_PAGE = 20*3  # 1ページの最大文字数
-    MAX_LINES = 30             # メッセージを格納できる最大行数
-    LINE_HEIGHT = 8            # 行間の大きさ
-    animcycle = 24
-    def __init__(self, rect, msg_engine):
-        Window.__init__(self, rect)
-        self.text_rect = self.inner_rect.inflate(-32, -32)  # テキストを表示する矩形
-        self.text = []  # メッセージ
-        self.cur_page = 0  # 現在表示しているページ
-        self.cur_pos = 0  # 現在ページで表示した最大文字数
-        self.next_flag = False  # 次ページがあるか？
-        self.hide_flag = False  # 次のキー入力でウィンドウを消すか？
-        self.msg_engine = msg_engine  # メッセージエンジン
-        self.cursor = control.Ctl.load_image("data", "cursor.png", -1)  # カーソル画像
-        self.frame = 0
-    def set(self, message):
-        """メッセージをセットしてウィンドウを画面に表示する"""
-        self.cur_pos = 0
-        self.cur_page = 0
-        self.next_flag = False
-        self.hide_flag = False
-        # 全角スペースで初期化
-        self.text = [u'　'] * (self.MAX_LINES*self.MAX_CHARS_PER_LINE)
-        # メッセージをセット
-        p = 0
-        for i in range(len(message)):
-            ch = message[i]
-            if ch == "/":  # /は改行文字
-                self.text[p] = "/"
-                p += self.MAX_CHARS_PER_LINE
-                p = int((p/self.MAX_CHARS_PER_LINE)*self.MAX_CHARS_PER_LINE)
-            elif ch == "%":  # \fは改ページ文字
-                self.text[p] = "%"
-                p += self.MAX_CHARS_PER_PAGE
-                p = int((p/self.MAX_CHARS_PER_PAGE)*self.MAX_CHARS_PER_PAGE)
-            else:
-                self.text[p] = ch
-                p += 1
-        self.text[p] = "$"  # 終端文字
-        self.show()
-    def update(self):
-        """メッセージウィンドウを更新する
-        メッセージが流れるように表示する"""
-        if self.is_visible:
-            if self.next_flag == False:
-                self.cur_pos += 1  # 1文字流す
-                # テキスト全体から見た現在位置
-                p = self.cur_page * self.MAX_CHARS_PER_PAGE + self.cur_pos
-                if self.text[p] == "/":  # 改行文字
-                    self.cur_pos += self.MAX_CHARS_PER_LINE
-                    self.cur_pos = int((self.cur_pos/self.MAX_CHARS_PER_LINE) * self.MAX_CHARS_PER_LINE)
-                elif self.text[p] == "%":  # 改ページ文字
-                    self.cur_pos += self.MAX_CHARS_PER_PAGE
-                    self.cur_pos = int((self.cur_pos/self.MAX_CHARS_PER_PAGE) * self.MAX_CHARS_PER_PAGE)
-                elif self.text[p] == "$":  # 終端文字
-                    self.hide_flag = True
-                # 1ページの文字数に達したら▼を表示
-                if self.cur_pos % self.MAX_CHARS_PER_PAGE == 0:
-                    self.next_flag = True
-        self.frame += 1
-    def draw(self, screen):
-        """メッセージを描画する
-        メッセージウィンドウが表示されていないときは何もしない"""
-        Window.draw(self, screen)
-        if self.is_visible == False: return
-        # 現在表示しているページのcur_posまでの文字を描画
-        for i in range(self.cur_pos):
-            ch = self.text[self.cur_page*self.MAX_CHARS_PER_PAGE+i]
-            if ch == "/" or ch == "%" or ch == "$": continue  # 制御文字は表示しない
-            dx = self.text_rect[0] + MessageEngine.FONT_WIDTH * (i % self.MAX_CHARS_PER_LINE)
-            dy = self.text_rect[1] + (self.LINE_HEIGHT+MessageEngine.FONT_HEIGHT) * (i // self.MAX_CHARS_PER_LINE)
-            self.msg_engine.draw_character(screen, (dx,dy), ch)
-        # 最後のページでない場合は▼を表示
-        if (not self.hide_flag) and self.next_flag:
-            if self.frame / self.animcycle % 2 == 0:
-                dx = self.text_rect[0] + (self.MAX_CHARS_PER_LINE/2) * MessageEngine.FONT_WIDTH - MessageEngine.FONT_WIDTH/2
-                dy = self.text_rect[1] + (self.LINE_HEIGHT + MessageEngine.FONT_HEIGHT) * 3
-                screen.blit(self.cursor, (dx,dy))
-    def next(self):
-        """メッセージを先に進める"""
-        # 現在のページが最後のページだったらウィンドウを閉じる
-        if self.hide_flag:
-            self.hide()
-            return False
-        # ▼が表示されてれば次のページへ
-        if self.next_flag:
-            self.cur_page += 1
-            self.cur_pos = 0
-            self.next_flag = False
-            return True
-
-'''
-class CommandWindow(Window):
-    LINE_HEIGHT = 8  # 行間の大きさ
-    TALK, STATUS, EQUIPMENT, DOOR, SPELL, ITEM, TACTICS, SEARCH = range(0, 8)
-    COMMAND = ["はなす", "つよさ", "そうび", "とびら",
-               "じゅもん", "どうぐ", "さくせん", "しらべる"]
-    def __init__(self, rect, msg_engine):
-        Window.__init__(self, rect)
-        self.text_rect = self.inner_rect.inflate(-32, -32)
-        self.command = self.TALK  # 選択中のコマンド
-        self.msg_engine = msg_engine
-        self.cursor = control.Ctl.load_image("data", "cursor2.png", -1)
-        self.frame = 0
-    def draw(self, screen):
-        Window.draw(self, screen)
-        if self.is_visible == False: return
-        # はなす、つよさ、そうび、とびらを描画
-        for i in range(0, 4):
-            dx = self.text_rect[0] + MessageEngine.FONT_WIDTH
-            dy = self.text_rect[1] + (self.LINE_HEIGHT+MessageEngine.FONT_HEIGHT) * int((i % 4))
-            self.msg_engine.draw_string(screen, (dx,dy), self.COMMAND[i])
-        # じゅもん、どうぐ、さくせん、しらべるを描画
-        for i in range(4, 8):
-            dx = self.text_rect[0] + MessageEngine.FONT_WIDTH * 6
-            dy = self.text_rect[1] + (self.LINE_HEIGHT+MessageEngine.FONT_HEIGHT) * int((i % 4))
-            self.msg_engine.draw_string(screen, (dx,dy), self.COMMAND[i])
-        # 選択中のコマンドの左側に▶を描画
-        dx = self.text_rect[0] + MessageEngine.FONT_WIDTH * 5 * (self.command // 4)
-        dy = self.text_rect[1] + (self.LINE_HEIGHT+MessageEngine.FONT_HEIGHT) * int((self.command % 4))
-        screen.blit(self.cursor, (dx,dy))
-    def show(self):
-        """オーバーライド"""
-        self.command = self.TALK  # 追加
-        self.is_visible = True
-'''
+    def is_visible(self):
+        return self.visible
 
 
-class StartWindow(Window):
+class SelectWindow(BaseWindow):
+
+    class TIME(IntEnum):
+        PAUSE = 1
 
     class SELECT(IntEnum):
         START = 0
@@ -183,10 +62,11 @@ class StartWindow(Window):
         LENGTH = 3
 
     class Parameter:
-        def __init__(self, curpos, strpos ,caption ):
+        def __init__(self, curpos, strpos, caption, callback ):
             self.curpos = curpos
             self.strpos = strpos
             self.caption = caption
+            self.callback = callback
 
     Params: Dict[Enum, Any] = {
             SELECT.START    : Parameter,
@@ -194,16 +74,40 @@ class StartWindow(Window):
             SELECT.EXIT     : Parameter,
     }
 
-    Params[SELECT.START]     = Parameter((240, 240), (260, 240),'START')
-    Params[SELECT.CONTINUE]  = Parameter((240, 280), (260, 280),'CONTINUE')
-    Params[SELECT.EXIT]      = Parameter((240, 320), (260, 320),'EXIT')
+    # Params[SELECT.START]     = Parameter((240, 240), (260, 240), 'START', StartWindow.callback_start)
+    # Params[SELECT.CONTINUE]  = Parameter((240, 280), (260, 280), 'CONTINUE', StartWindow.callback_continue)
+    # Params[SELECT.EXIT]      = Parameter((240, 320), (260, 320), 'EXIT', StartWindow.callback_exit)
 
+
+    def callback_start(self):
+        g.game_state = SCENE.FIELD
+
+    def callback_continue(self):
+        pass
+
+    def callback_exit(self):
+        pygame.quit()
+        sys.exit()
+
+    def is_pause(self)->bool:
+        return self.pause
+
+    def input_pause(self):
+        self.pause = True
+
+    def input_allow(self):
+        self.pause = False
 
     def __init__(self, rect):
         super().__init__(rect)
-        self.is_visible = super().__dict__['is_visible']
+        self.Params[self.SELECT.START]     = self.Parameter((240, 240), (260, 240), 'スタート', self.callback_start)
+        self.Params[self.SELECT.CONTINUE]  = self.Parameter((240, 280), (260, 280), 'コンティニュー', self.callback_continue)
+        self.Params[self.SELECT.EXIT]      = self.Parameter((240, 320), (260, 320), 'おわり', self.callback_exit)
+
+        # self.visible = super().__dict__['visible']
         self.select = self.SELECT.START
-        self.cursor = Actor("cursor2.png", self.Params[self.SELECT.START].curpos)
+        self.cursor = Actor("cursor_select.png", self.Params[self.SELECT.START].curpos)
+        self.input_allow()
 
     def update(self):
         super().update()
@@ -221,7 +125,7 @@ class StartWindow(Window):
         # メニューの描画
         for i in range(self.SELECT.LENGTH):
             screen.draw.text(self.Params[i].caption , \
-                            self.Params[i].strpos, fontsize=24, color='WHITE')
+                            self.Params[i].strpos, fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
 
         self.cursor.draw()
 
@@ -230,17 +134,14 @@ class StartWindow(Window):
 
         if keyboard[keys.RETURN]: 
             if self.select == self.SELECT.START:
-                g.game_state = SCENE.FIELD
-                # g.map.create("field")  # フィールドマップへ
-
-                g.sceneStack.popleft()
-                g.sceneStack.appendleft(FieldScene())
-
+                self.Params[self.SELECT.START].callback()
             elif self.select == self.SELECT.CONTINUE:
-                pass
+                self.Params[self.SELECT.CONTINUE].callback()
             elif self.select == self.SELECT.EXIT:
-                pygame.quit()
-                sys.exit()
+                self.Params[self.SELECT.EXIT].callback()
+
+        if self.is_pause():
+            return
 
         if keyboard[keys.UP]:
             self.select = self.SELECT.LENGTH - 1 if (self.select - 1) < 0 else self.select - 1
@@ -248,47 +149,255 @@ class StartWindow(Window):
         if keyboard[keys.DOWN]:
             self.select = (self.select + 1) % self.SELECT.LENGTH
 
+        self.input_pause()
+        clock.schedule_interval(self.input_allow, self.TIME.PAUSE)
 
 
-'''
-class MessageEngine:
-    FONT_WIDTH = 16
-    FONT_HEIGHT = 22
-    WHITE, RED, GREEN, BLUE = 0, 160, 320, 480
-    def __init__(self):
-        self.image = control.Ctl.load_image("data", "font.png", -1)
-        self.color = self.WHITE
-        self.kana2rect = {}
-        self.create_hash()
-    def set_color(self, color):
-        """文字色をセット"""
-        self.color = color
-        # 変な値だったらWHITEにする
-        if not self.color in [self.WHITE,self.RED,self.GREEN,self.BLUE]:
-            self.color = self.WHITE
-    def draw_character(self, screen, pos, ch):
-        """1文字だけ描画する"""
-        x, y = pos
-        try:
-            rect = self.kana2rect[ch]
-            screen.blit(self.image, (x,y), (rect.x+self.color,rect.y,rect.width,rect.height))
-        except KeyError:
-            print("描画できない文字があります:%s" % ch)
+
+class MessageWindow(BaseWindow):
+
+    def __init__(self, rect):
+        BaseWindow.__init__(self, rect)
+        self.rect = rect
+        self.text = []
+        self.text_pos = (self.rect.left + 20, self.rect.top + 20)
+        # self.cursor = Actor("cursor_next.png", self.Params[self.SELECT.START].curpos)
+
+    def setText(self, text):
+        self.text = text
+
+    def update(self):
+        super().update()
+
+    def draw(self, screen):
+        super().draw(screen)
+        screen.draw.text(self.text  , \
+                        self.text_pos, fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
+
+
+    def handler(self, keyboard):
+        super().handler(keyboard)
+
+        if keyboard[keys.RETURN]: 
+            self.hide()
+
+
+class FontTool(BaseWindow):
+    @staticmethod
+    def replace_widenum(num)->Any:
+        before = ['0','1','2','3','4','5','6','7','8','9']
+        after = ['０','１','２','３','４','５','６','７','８','９']
+
+        res = str(num)
+        for i in range(len(before)):
+            res = res.replace(before[i],after[i])
+
+        return res 
+
+
+class StatusWindow(BaseWindow):
+    ROW_GAP = 20
+
+    def __init__(self, rect, party):
+        BaseWindow.__init__(self, rect)
+        self.party = party
+        self.text_pos = (self.rect.left + 10, self.rect.top + 10)
+
+    def update(self):
+        super().update()
+
+    def draw(self, screen):
+        super().draw(screen)
+
+        for i in range(len(self.party.memberList)):
+            pos = (self.text_pos[0], self.text_pos[1] + (i * self.ROW_GAP))
+            name = self.party.memberList[i].name
+            hp = FontTool.replace_widenum(self.party.memberList[i].hp)
+            mp = FontTool.replace_widenum(self.party.memberList[i].mp)
+            screen.draw.text(f"{name:>5}　{hp:>4}　{mp:>4}" , \
+                            pos, fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
+
+
+
+    def handler(self, keyboard):
+        super().handler(keyboard)
+
+        if keyboard[keys.RETURN]: 
+            self.hide()
+
+
+
+class ScriptPerser():
+
+    _arg = {
+            'scenario': 'scenario1',
+            'speed': 1,
+    }
+
+    def __init__(self, **kwargs):
+        self.validate_args(kwargs)
+        scenario = self._arg['scenario']
+        self.speed = self._arg['speed']
+
+        self.init_scenario(scenario)
+        for self.currPage in self.json_dict: break
+        self.init_page(self.currPage)
+
+    def validate_args(self, args):
+        for key in self._arg.keys():
+            arg = args.get(key)
+            if arg != None:
+                self._arg[key] = arg
+
+    def init_scenario(self, filename):
+        self.json_dict = self.read_json(filename)
+
+    def read_json(self, filename) -> Any:
+        f = open(f'./assets/events/{filename}.json', 'r', encoding="utf-8")
+        json_dict = json.load(f, object_pairs_hook=OrderedDict)
+
+        if __debug__:
+            for x in json_dict:
+                print(f'{x}:{json_dict[x]}')
+
+        return json_dict
+
+    def init_page(self, currPage):
+        self.text = self.json_dict[currPage]["text"]
+        self.next = self.json_dict[currPage]["next"]
+        self.speed = int(self.json_dict[currPage]["speed"])
+
+
+
+
+class ScriptWindow(BaseWindow):
+
+    class CHARPTR(IntEnum):
+        IS_ACTIVE = 0
+        WAIT_LINE = auto()
+        WAIT_PAGE = auto()
+        ENDOFLINE = auto()
+        WAIT_SELECT = auto()
+
+    class LIMIT(IntEnum):
+        CHAR_COUNT = 30
+        LINE_COUNT = 5
+        PAGE_COUNT = 999
+
+    class Parameter:
+        def __init__(self, cursor, delim):
+            self.cursor = cursor
+            self.delim = delim
+
+    Params: Dict[Enum, Any] = {
+            CHARPTR.IS_ACTIVE  : Parameter,
+            CHARPTR.WAIT_LINE  : Parameter,
+            CHARPTR.WAIT_PAGE  : Parameter,
+            CHARPTR.WAIT_SELECT: Parameter,
+    }
+
+    Params[CHARPTR.IS_ACTIVE]    = Parameter(None,'')
+    Params[CHARPTR.WAIT_LINE]    = Parameter(LineCursor,'/')
+    Params[CHARPTR.WAIT_PAGE]    = Parameter(PageCursor,'%')
+    Params[CHARPTR.WAIT_SELECT]  = Parameter(None,'#')
+
+
+
+    def __init__(self, rect):
+        BaseWindow.__init__(self, rect)
+        self.rect = rect
+        dx = rect.left + (rect.width // 2)
+        dy = rect.top + (rect.height - 20)
+        self.Params[self.CHARPTR.WAIT_LINE].cursor = LineCursor(dx, dy, Color("white"))
+        self.Params[self.CHARPTR.WAIT_PAGE].cursor = PageCursor(dx, dy, Color("white"))
+
+        self.surfs = deque()
+
+        self.text_pos = (self.rect.left + 20, self.rect.top + 20)
+        self.textall = []
+        self.buf = ""
+        self.ptr = 0
+        
+        self.pause = 0
+        self.speed = 1
+        self.status = self.CHARPTR.IS_ACTIVE
+
+    def update(self):
+        super().update()
+        self.pause += 1
+        
+        if not self.Params[self.status].cursor == None:
+            self.Params[self.status].cursor.update()
             return
-    def draw_string(self, screen, pos, str):
-        """文字列を描画"""
-        x, y = pos
-        for i, ch in enumerate(str):
-            dx = x + self.FONT_WIDTH * i
-            self.draw_character(screen, (dx,y), ch)
-    def create_hash(self):
-        """文字から座標への辞書を作成"""
-        filepath = os.path.join("data", "kana2rect.dat")
-        fp = codecs.open(filepath, "r", "utf-8")
-        for line in fp.readlines():
-            line = line.rstrip()
-            d = line.split("\t")
-            kana, x, y, w, h = d[0], int(d[1]), int(d[2]), int(d[3]), int(d[4])
-            self.kana2rect[kana] = Rect(x, y, w, h)
-        fp.close()
-'''
+
+        self.pause %= self.speed
+        if not self.pause == 0:
+            return
+
+        if len(self.buf) >= self.LIMIT.CHAR_COUNT:
+            self.buf = "" # バッファをクリア
+            self.surfs.append(self.buf) # 末尾に空の要素を追加
+
+        if len(self.surfs) >= self.LIMIT.LINE_COUNT:
+            self.surfs.popleft()
+
+        if len(self.buf) >= len(self.textall) or self.ptr >= len(self.textall):
+            self.status = self.CHARPTR.WAIT_PAGE
+            return
+
+        ch = self.textall[self.ptr]
+
+        if ch == "/":
+            self.buf = ""
+            self.surfs.append(self.buf)
+            self.ptr += 1
+            self.status = self.CHARPTR.WAIT_LINE
+            return
+
+        if ch == "%":
+            self.status = self.CHARPTR.WAIT_PAGE
+            return
+
+        if ch == "#":
+            self.ptr += 1
+            self.status = self.CHARPTR.WAIT_SELECT
+            return
+
+        if ch == "$":
+            pass
+
+        self.buf += self.textall[self.ptr]
+        # dequeの要素数は最低でも１つ用意して、
+        # 末尾のdequeに対して、その内容を一文字ずつ更新
+        if len(self.surfs) == 0:self.surfs.append('')
+        self.surfs[-1] = self.buf
+        self.ptr += 1
+
+    def draw(self, screen):
+        super().draw(screen)
+
+        if not self.Params[self.status].cursor == None:
+            self.Params[self.status].cursor.draw(screen)
+
+        for i in range(len(self.surfs)):
+            dx, dy = self.text_pos
+            dy += (i * 20)
+            screen.draw.text(self.surfs[i] , \
+                            (dx, dy), fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
+
+            if __debug__:
+                print(f"{i}{self.surfs[i]}")
+
+        
+    def handler(self, even):
+        super().handler(keyboard)
+
+        if keyboard[keys.RETURN]: 
+            if self.status == self.CHARPTR.WAIT_LINE:
+                self.status = self.CHARPTR.IS_ACTIVE
+            elif self.status == self.CHARPTR.WAIT_PAGE:
+                self.hide()
+            elif self.status == self.CHARPTR.WAIT_SELECT:
+                self.status = self.CHARPTR.IS_ACTIVE
+
+
