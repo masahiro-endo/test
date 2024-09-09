@@ -5,6 +5,7 @@ from pygame.locals import *
 import random
 from enum import IntEnum, Enum, auto
 from typing import Any, Dict
+from collections import deque
 
 import global_value as g
 from scene.scene import *
@@ -17,7 +18,7 @@ GS = 32
 
 
 
-class Character:
+class BaseCharacter:
 
     def __init__(self):
         pass
@@ -32,7 +33,7 @@ class Character:
         return "CHARA,%s,%d,%d,%d,%d,%s" % (self.name,self.x,self.y,self.direction,self.movetype,self.message)
 
 
-class Player(Character):
+class Player(BaseCharacter):
     def __init__(self, name, job):
         self.name = name
         self.hp = AvatorTool.Params[job].hp
@@ -41,20 +42,20 @@ class Player(Character):
     def update(self):
         pass
 
-class Enemy(Character):
+class Enemy(BaseCharacter):
     def __init__(self):
         super().__init__()
 
 
 
-class Party(object):
+class BaseParty():
     # パーティーメンバーのリスト
     memberList = []
 
     def __init__(self):
         self.memberList = []
 
-    def addMember(self, chr: Character) -> None:
+    def addMember(self, chr) -> None:
         self.memberList.append(chr)
 
     def removeMember(self, idx: int) -> None:
@@ -65,16 +66,46 @@ class Party(object):
                 "specified a member who doesn't exist.：" + str(idx))
 
 
-class PlayerParty(Party):
+class PlayerParty(BaseParty):
+
+    class History:
+        def __init__(self, rect, direction):
+            self.rect = rect
+            self.direction = direction
+
+    class PARTYACTION:
+        ATTACK = auto()
+        TALK = auto()
+        RUN = auto()
 
     def __init__(self):
         super().__init__()
 
+        self.memberList = deque()
+        self.footstamp = deque()
+
         if __debug__:
             print("PlayerParty : Initialized.")
 
-    def initialize(self) -> None:
+    def set_footstamp(self, rect, direction):
+        MAX_LEN = 10
+        self.footstamp.appendleft(self.History(rect, direction))
+        for i in range(len(self.footstamp) - MAX_LEN):
+            self.footstamp.pop()
+
+    def set_memberPos(self):
+        for i in range(len(self.memberList)):
+            if len(self.footstamp) > (i*5):
+                history = self.footstamp[i*5]
+                x = history.rect.left
+                y = history.rect.top
+                self.memberList[i].pos = (x, y)
+                self.memberList[i].rect = history.rect
+                self.memberList[i].direction = history.direction
+
+    def initialize(self):
         self.__init__()
+        self.footstamp.clear()
 
     def addMember(self, chr: Player) -> None:
         if len(self.memberList) < 5:
@@ -84,7 +115,7 @@ class PlayerParty(Party):
 
 
 
-class EnemyParty(Party):
+class EnemyParty(BaseParty):
 
     def __init__(self):
         super().__init__()
@@ -131,7 +162,7 @@ class AvatorTool():
     def get_charachip(job)->Any:
         res = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
         # image = pygame.image.load(f"{os.path.dirname(__file__)}{AvatorTool.Params[job].filename}").convert()
-        image = pygame.image.load(f"{os.path.dirname(__file__)}/../{AvatorTool.Params[job].filename}").convert()
+        image = pygame.image.load(f"{os.path.dirname(__file__)}/{AvatorTool.Params[job].filename}").convert()
 
         for y in range(4):
             for x in range(4):
@@ -153,18 +184,28 @@ class Avator():
     class WALK(IntEnum):
         NORMAL = 5
 
-    def __init__(self):
-
+    def __init__(self, job):
         self.objects = []
         self.anime=[]
-        self.anime = AvatorTool.get_charachip(AvatorTool.JOB.WHITECAT)
+        self.anime = AvatorTool.get_charachip(job)
 
         self.imgnum = 0
         self.direction = self.LOOK.DOWN
 
         self.pos = 0, 0
-        self.spd = self.WALK.NORmAL
+        self.rect = Rect(self.pos[0], self.pos[1], GS, GS)
+        self.spd = self.WALK.NORMAL
         
+    def is_movable(self, x, y)->bool:
+        res = True
+        rect = Rect(x, y, self.rect.width, self.rect.height) 
+        for obj in g.blocks:
+            if not pygame.Rect.colliderect(rect, obj.rect):
+                continue
+            res = False
+            break
+        return res
+
     def turn(self, direction):
             if not self.direction==direction:
                 self.direction = direction
@@ -179,5 +220,17 @@ class Avator():
                     x -= self.spd
                 if self.direction==self.LOOK.RIGHT:
                     x += self.spd
-                self.pos = x, y
-                self.imgnum = (self.imgnum + 1) % self.LOOK.LENGTH
+                
+                if self.is_movable(x, y):
+                    self.pos = x, y
+                    self.rect = Rect(self.pos[0], self.pos[1], GS, GS)
+                    self.imgnum = (self.imgnum + 1) % self.LOOK.LENGTH
+                    g.party.set_footstamp(self.rect, self.direction)
+                    g.party.set_memberPos()
+
+
+
+class Block():
+    def __init__(self, rect):
+        self.rect = rect
+

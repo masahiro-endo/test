@@ -15,24 +15,74 @@ from UI import *
 
 
 
-class CombatAction:
+class BaseCombatAct:
 
-    _msg: str
-    _snd: pygame.mixer.Sound
+    class ACT:
+        ATTACK = auto()
+        DEFENCE = auto()
+        MAGIC = auto()
+        ITEM = auto()
+
+    class Parameter:
+        def __init__(self, name, effect, sound):
+            self.name = name
+            self.effect = effect
+            self.sound = sound
+
+    Params: Dict[Enum, Any] = {
+            ACT.ATTACK    : Parameter,
+            ACT.DEFENCE   : Parameter,
+    }
+
+    Params[ACT.ATTACK]    = Parameter("攻撃", None, "/sounds/剣の素振り2.mp3")
+    Params[ACT.DEFENCE]   = Parameter("防御", None, "/sounds/ステータス治療1.mp3")
+
+    def __init__(self):
+        self._msg = ""
+        self._snd = None
     
-    def __init__(self):
-        self._msg = "１１１のダメージ%"
-    
-class PlayerDicide(CombatAction):
-    def __init__(self):
-        super().__init__()
-        # self._snd = pygame.mixer.Sound("./assets/sounds/" + "ステータス治療1.mp3")
+class PlayerDicide(BaseCombatAct):
 
-class AIDicide(CombatAction):
-    def __init__(self):
+    def __init__(self, enemies):
         super().__init__()
-        # self._snd = pygame.mixer.Sound("./assets/sounds/" + "剣の素振り2.mp3")
+        self.enemies = enemies
 
+class AIDicide(BaseCombatAct):
+
+    '''
+    WOLF
+        BITE
+        BREATH
+    '''
+    def __init__(self, players):
+        super().__init__()
+        self.players = players # 攻撃対象が単体とは限らない
+
+
+class PartyActTool():
+
+    class ACT:
+        ATTACK  = 0
+        DEFENCE = 1
+        MAGIC   = 2
+        ITEM    = 3
+        RUN     = 4
+        LENGTH  = 5
+
+    class Parameter:
+        def __init__(self, curpos, strpos, caption, selected ):
+            self.curpos = curpos
+            self.strpos = strpos
+            self.caption = caption
+            self.selected = selected
+
+    Params: Dict[Enum, Any] = {
+            ACT.ATTACK    : Parameter,
+            ACT.DEFENCE   : Parameter,
+    }
+
+    Params[ACT.ATTACK]    = Parameter((20, 30), (40, 15), "こうげき", False)
+    Params[ACT.DEFENCE]   = Parameter((20, 60), (40, 45), "ぼうぎょ", False)
 
 
 
@@ -47,12 +97,16 @@ class CombatScene(BaseScene):
         wnd.show()
         self._wnd.append(wnd)
         '''
+        wnd = SelectWindow(Rect(20,300,120,140), PartyActTool.Params)
+        wnd.show()
+        self._wnd.append(wnd)
+
+        '''
         wnd = ScriptWindow(Rect(20,300,600,140))
         wnd.textall = "１２３４５６７８９０/あいうえお/かきくけこ/さしすせそ/たちつてと/なにぬねの/はひふへほ/まみむめもやゆよわをん"
         wnd.show()
         self._wnd.append(wnd)
 
-        '''
         wnd = StatusWindow(Rect(20,20,300,100), g.party)
         wnd.show()
         self._wnd.append(wnd)

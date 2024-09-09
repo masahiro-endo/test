@@ -38,14 +38,20 @@ class Game:
         g.objects = []  # スプライトのリスト
         g.game_state = SCENE.TITLE
 
-        g.party = Party()
+        g.party = PlayerParty()
         player1 = Player("せんし", AvatorTool.JOB.SWORDMAN)
         player2 = Player("ねこ", AvatorTool.JOB.WHITECAT)
-        g.party.addMember(player1)
-        g.party.addMember(player2)
+        # g.party.addMember(player1)
+        # g.party.addMember(player2)
+        avator1 = Avator(AvatorTool.JOB.WHITECAT)
+        avator2 = Avator(AvatorTool.JOB.SWORDMAN)
+        g.party.addMember(avator1)
+        g.party.addMember(avator2)
+        g.map = []
+        g.blocks = deque()
 
         g.sceneStack = deque()
-        g.sceneStack.appendleft(CombatScene())
+        g.sceneStack.appendleft(FieldScene())
 
         g.mainDir = os.path.dirname(__file__)
 

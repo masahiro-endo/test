@@ -66,9 +66,12 @@ class MapTool():
             for j in range(col):
                 if map[i][j] == 'B':
                     source = MapTool.loadmapchip(MapTool.OBJECT.FOREST)
+                    g.blocks.append(Block(Rect(j * GS, i * GS, GS, GS)))
                 else:
                     source = MapTool.loadmapchip(MapTool.OBJECT.STONEFLOOR)
                 surface.blit(source, (j * GS, i * GS))
+
+        g.map = map
 
         return surface
 
@@ -76,8 +79,12 @@ class MapTool():
 class FieldScene(BaseScene):
 
     def __init__(self):
-        self.avator = Avator()
         self.surface = MapTool.loadmap(MapTool.MAP.TOWN)
+
+        # self.avator = Avator()
+        # self.avator.pos = (GS, GS)
+        for mem in g.party.memberList:
+            mem.pos = (GS, GS)
 
     def doEncounted(self) -> bool:
         if random.randint(0, 300) == 0:
@@ -92,30 +99,31 @@ class FieldScene(BaseScene):
     def update(self):
         super().update()
 
-        if self.doEncounted():
-            self.trans_combatScene()
+        # if self.doEncounted():
+        #     self.trans_combatScene()
 
     def draw(self, screen):
         super().draw(screen)
         WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 
         screen.surface.blit(self.surface, (0,0), (0, 0, WIDTH, HEIGHT))
-        screen.blit(self.avator.anime[self.avator.direction][self.avator.imgnum], self.avator.pos)
+        for mem in reversed(g.party.memberList):
+            screen.blit(mem.anime[mem.direction][mem.imgnum], mem.pos)
 
     def handler(self, keyboard):
         super().handler(keyboard)
-        x, y = self.avator.pos
+        leader = g.party.memberList[0]
 
         if keyboard[keys.RETURN]: 
             pass
         if keyboard[keys.DOWN]:
-            self.avator.turn(self.avator.LOOK.DOWN)
+            leader.turn(Avator.LOOK.DOWN)
         if keyboard[keys.LEFT]:
-            self.avator.turn(self.avator.LOOK.LEFT)
+            leader.turn(Avator.LOOK.LEFT)
         if keyboard[keys.RIGHT]:
-            self.avator.turn(self.avator.LOOK.RIGHT)
+            leader.turn(Avator.LOOK.RIGHT)
         if keyboard[keys.UP]:
-            self.avator.turn(self.avator.LOOK.UP)
+            leader.turn(Avator.LOOK.UP)
 
         if keyboard[keys.SPACE]: 
             pass

@@ -50,44 +50,20 @@ class BaseWindow:
         return self.visible
 
 
+
+
+
 class SelectWindow(BaseWindow):
 
-    class TIME(IntEnum):
-        PAUSE = 1
+    class CHARPTR(IntEnum):
+        IS_ACTIVE = 0
+        WAIT_LINE = auto()
+        WAIT_PAGE = auto()
+        ENDOFLINE = auto()
+        WAIT_SELECT = auto()
 
-    class SELECT(IntEnum):
-        START = 0
-        CONTINUE = 1
-        EXIT = 2
-        LENGTH = 3
-
-    class Parameter:
-        def __init__(self, curpos, strpos, caption, callback ):
-            self.curpos = curpos
-            self.strpos = strpos
-            self.caption = caption
-            self.callback = callback
-
-    Params: Dict[Enum, Any] = {
-            SELECT.START    : Parameter,
-            SELECT.CONTINUE : Parameter,
-            SELECT.EXIT     : Parameter,
-    }
-
-    # Params[SELECT.START]     = Parameter((240, 240), (260, 240), 'START', StartWindow.callback_start)
-    # Params[SELECT.CONTINUE]  = Parameter((240, 280), (260, 280), 'CONTINUE', StartWindow.callback_continue)
-    # Params[SELECT.EXIT]      = Parameter((240, 320), (260, 320), 'EXIT', StartWindow.callback_exit)
-
-
-    def callback_start(self):
-        g.game_state = SCENE.FIELD
-
-    def callback_continue(self):
-        pass
-
-    def callback_exit(self):
-        pygame.quit()
-        sys.exit()
+    class Style():
+        LINE_SPACE = 5
 
     def is_pause(self)->bool:
         return self.pause
@@ -98,59 +74,78 @@ class SelectWindow(BaseWindow):
     def input_allow(self):
         self.pause = False
 
-    def __init__(self, rect):
-        super().__init__(rect)
-        self.Params[self.SELECT.START]     = self.Parameter((240, 240), (260, 240), 'スタート', self.callback_start)
-        self.Params[self.SELECT.CONTINUE]  = self.Parameter((240, 280), (260, 280), 'コンティニュー', self.callback_continue)
-        self.Params[self.SELECT.EXIT]      = self.Parameter((240, 320), (260, 320), 'おわり', self.callback_exit)
 
-        # self.visible = super().__dict__['visible']
-        self.select = self.SELECT.START
-        self.cursor = Actor("cursor_select.png", self.Params[self.SELECT.START].curpos)
+    def __init__(self, rect, params):
+        super().__init__(rect)
+        self.rect = rect
+        dx = self.rect.left
+        dy = self.rect.top
+        self.pos = (dx, dy)
+        # self.cursor = SelectCursor(dx, dy, Color("white"))
+
+        self.status = self.CHARPTR.WAIT_SELECT
+
+        self.select = 0
+        self.init_selectitems(params)
         self.input_allow()
+
+    def init_selectitems(self, params):
+        self.params = params
+        self.cursor = Actor("cursor_select.png", self.params[self.select].curpos)
+
+    def get_curpos(self, pnum)->Tuple:
+        dx, dy = self.pos
+        dx += self.params[pnum].curpos[0]
+        dy += self.params[pnum].curpos[1]
+        return (dx, dy)
+
+    def get_strpos(self, pnum)->Tuple:
+        dx, dy = self.pos
+        dx += self.params[pnum].strpos[0]
+        dy += self.params[pnum].strpos[1]
+        return (dx, dy)
 
     def update(self):
         super().update()
 
-        if self.select == 0:
-            self.cursor.pos = self.Params[0].curpos
-        elif self.select == 1:
-            self.cursor.pos = self.Params[1].curpos
-        elif self.select == 2:
-            self.cursor.pos = self.Params[2].curpos
+        self.cursor.pos = self.get_curpos(self.select)
+
 
     def draw(self, screen):
         super().draw(screen)
 
+        if not self.is_visible():
+            return
+
         # メニューの描画
-        for i in range(self.SELECT.LENGTH):
-            screen.draw.text(self.Params[i].caption , \
-                            self.Params[i].strpos, fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
+        for i in range(len(self.params)):
+            dx, dy = self.get_strpos(i)
+            screen.draw.text(self.params[i].caption , \
+                            (dx, dy), fontsize=24, color='WHITE', fontname='dragon_quest_fc.ttf')
 
         self.cursor.draw()
-
+        
     def handler(self, keyboard):
         super().handler(keyboard)
 
-        if keyboard[keys.RETURN]: 
-            if self.select == self.SELECT.START:
-                self.Params[self.SELECT.START].callback()
-            elif self.select == self.SELECT.CONTINUE:
-                self.Params[self.SELECT.CONTINUE].callback()
-            elif self.select == self.SELECT.EXIT:
-                self.Params[self.SELECT.EXIT].callback()
+        if keyboard[keys.RETURN]:
+            self.params[self.select].selected = True 
+            self.status = self.CHARPTR.IS_ACTIVE
+            self.hide()
 
         if self.is_pause():
             return
 
         if keyboard[keys.UP]:
-            self.select = self.SELECT.LENGTH - 1 if (self.select - 1) < 0 else self.select - 1
+            self.select = len(self.params)- 1 if (self.select - 1) < 0 else self.select - 1
 
         if keyboard[keys.DOWN]:
-            self.select = (self.select + 1) % self.SELECT.LENGTH
+            self.select = (self.select + 1) % len(self.params)
 
-        self.input_pause()
-        clock.schedule_interval(self.input_allow, self.TIME.PAUSE)
+
+        if __debug__:
+            self.input_pause()
+            clock.schedule_interval(self.input_allow, 1)
 
 
 

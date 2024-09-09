@@ -13,18 +13,45 @@ from UI import *
 
 class TitleScene(BaseScene):
 
+    class SELECT(IntEnum):
+        START = 0
+        CONTINUE = 1
+        EXIT = 2
+        LENGTH = 3
+
+    class Parameter:
+        def __init__(self, curpos, strpos, caption, selected ):
+            self.curpos = curpos
+            self.strpos = strpos
+            self.caption = caption
+            self.selected = selected
+
+    Params: Dict[Enum, Any] = {
+            SELECT.START    : Parameter,
+            SELECT.CONTINUE : Parameter,
+            SELECT.EXIT     : Parameter,
+    }
+
+    Params[SELECT.START]     = Parameter((20, 30), (40, 15), 'スタート', False)
+    Params[SELECT.CONTINUE]  = Parameter((20, 60), (40, 45), 'コンティニュー', False)
+    Params[SELECT.EXIT]      = Parameter((20, 90), (40, 75), 'おわり', False)
+
     def __init__(self):
         self.title = Actor("python_quest.png", topleft=(20,60))
-        self.menu = StartWindow(Rect(220, 200, 180, 200))
+        self.menu = SelectWindow(Rect(220, 200, 180, 200), TitleScene.Params)
         self.menu.show()
 
     def trans_fieldScene(self):
         g.game_state = SCENE.FIELD
-        
-        # g.map.create("field")  # フィールドマップへ
-
         g.sceneStack.popleft()
         g.sceneStack.appendleft(FieldScene())
+
+    def get_selectnum(self)->int:
+        for i in self.menu.params:
+            if self.menu.params[i].selected:
+                res = i
+                break
+        return res
 
     def update(self):
         super().update()
@@ -38,11 +65,14 @@ class TitleScene(BaseScene):
         super().handler(keyboard)
         self.menu.handler(keyboard)
 
-        if g.game_state==SCENE.FIELD:
-            # g.map.create("field")  # フィールドマップへ
-            g.sceneStack.popleft()
-            g.sceneStack.appendleft(FieldScene())
-
+        if self.menu.status==self.menu.CHARPTR.IS_ACTIVE:
+            selnum = self.get_selectnum()
+            if self.SELECT.START==selnum:
+                self.trans_fieldScene()
+            elif self.SELECT.EXIT==selnum:
+                pygame.quit()
+                sys.exit()
+                   
 
     def play_bgm(self):
         pass
