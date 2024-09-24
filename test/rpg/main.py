@@ -41,17 +41,35 @@ class Game:
         g.party = PlayerParty()
         player1 = Player("せんし", AvatorTool.JOB.SWORDMAN)
         player2 = Player("ねこ", AvatorTool.JOB.WHITECAT)
-        # g.party.addMember(player1)
-        # g.party.addMember(player2)
+        g.party.addMember(player1)
+        g.party.addMember(player2)
+
+        g.eneparties = deque()
+
+        party = EnemyParty()
+        enemy1 = Enemy("スライム１", AvatorTool.JOB.SWORDMAN)
+        enemy2 = Enemy("スライム２", AvatorTool.JOB.WHITECAT)
+        party.addMember(enemy1)
+        party.addMember(enemy2)
+        g.eneparties.append(party)
+
+        party = EnemyParty()
+        enemy1 = Enemy("オオカミ１", AvatorTool.JOB.SWORDMAN)
+        enemy2 = Enemy("オオカミ２", AvatorTool.JOB.WHITECAT)
+        party.addMember(enemy1)
+        party.addMember(enemy2)
+        g.eneparties.append(party)
+
+        '''
         avator1 = Avator(AvatorTool.JOB.WHITECAT)
         avator2 = Avator(AvatorTool.JOB.SWORDMAN)
         g.party.addMember(avator1)
         g.party.addMember(avator2)
         g.map = []
         g.blocks = deque()
-
+        '''
         g.sceneStack = deque()
-        g.sceneStack.appendleft(FieldScene())
+        g.sceneStack.appendleft(CombatScene())
 
         g.mainDir = os.path.dirname(__file__)
 

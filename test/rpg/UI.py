@@ -384,7 +384,7 @@ class ScriptWindow(BaseWindow):
                 print(f"{i}{self.surfs[i]}")
 
         
-    def handler(self, even):
+    def handler(self, keyboard):
         super().handler(keyboard)
 
         if keyboard[keys.RETURN]: 

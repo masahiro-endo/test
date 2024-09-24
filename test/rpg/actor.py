@@ -21,7 +21,13 @@ GS = 32
 class BaseCharacter:
 
     def __init__(self):
-        pass
+        self.hp = 1
+
+    def is_dead(self)->bool:
+        res = False
+        if self.hp < 0:
+            res = True
+        return res
 
     def update(self):
         pass
@@ -35,6 +41,7 @@ class BaseCharacter:
 
 class Player(BaseCharacter):
     def __init__(self, name, job):
+        super().__init__()
         self.name = name
         self.hp = AvatorTool.Params[job].hp
         self.mp = AvatorTool.Params[job].mp
@@ -43,24 +50,26 @@ class Player(BaseCharacter):
         pass
 
 class Enemy(BaseCharacter):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name, job):
+        self.name = name
+        self.hp = 10
+        self.mp = 10
 
 
 
 class BaseParty():
     # パーティーメンバーのリスト
-    memberList = []
+    member = []
 
     def __init__(self):
-        self.memberList = []
+        self.member = []
 
-    def addMember(self, chr) -> None:
-        self.memberList.append(chr)
+    def addMember(self, chr):
+        self.member.append(chr)
 
-    def removeMember(self, idx: int) -> None:
+    def removeMember(self, idx):
         try:
-            del self.memberList[idx]
+            del self.member[idx]
         except:
             raise Exception(
                 "specified a member who doesn't exist.：" + str(idx))
@@ -68,6 +77,7 @@ class BaseParty():
 
 class PlayerParty(BaseParty):
 
+    # 追従キャラの位置・方向保存
     class History:
         def __init__(self, rect, direction):
             self.rect = rect
@@ -81,7 +91,7 @@ class PlayerParty(BaseParty):
     def __init__(self):
         super().__init__()
 
-        self.memberList = deque()
+        self.member = deque()
         self.footstamp = deque()
 
         if __debug__:
@@ -99,17 +109,17 @@ class PlayerParty(BaseParty):
                 history = self.footstamp[i*5]
                 x = history.rect.left
                 y = history.rect.top
-                self.memberList[i].pos = (x, y)
-                self.memberList[i].rect = history.rect
-                self.memberList[i].direction = history.direction
+                self.member[i].pos = (x, y)
+                self.member[i].rect = history.rect
+                self.member[i].direction = history.direction
 
     def initialize(self):
         self.__init__()
         self.footstamp.clear()
 
-    def addMember(self, chr: Player) -> None:
-        if len(self.memberList) < 5:
-            self.memberList.append(chr)
+    def addMember(self, chr: Player):
+        if len(self.member) < 5:
+            self.member.append(chr)
         else:
             raise Exception("can't add a member.")
 
@@ -126,9 +136,9 @@ class EnemyParty(BaseParty):
     def initialize(self) -> None:
         self.__init__()
 
-    def addMember(self, chr: Enemy) -> None:
-        if len(self.memberList) < 5:
-            self.memberList.append(chr)
+    def addMember(self, chr: Enemy):
+        if len(self.member) < 5:
+            self.member.append(chr)
         else:
             raise Exception("can't add a member.")
 
@@ -144,6 +154,10 @@ class AvatorTool():
         SWORDMAN = auto()
         WHITECAT = auto()
 
+    class TRIBE(IntEnum):
+        SLIME = auto()
+        WOLF = auto()
+
     class Parameter:
         def __init__(self, filename, hp, mp):
             self.filename = filename
@@ -157,6 +171,8 @@ class AvatorTool():
 
     Params[JOB.SWORDMAN]    = Parameter("/images/swordman_male.png",50, 10)
     Params[JOB.WHITECAT]    = Parameter("/images/white_cat.png",999, 999)
+    Params[TRIBE.SLIME]    = Parameter(None,10, 10)
+    Params[TRIBE.WOLF]    = Parameter(None,20, 20)
 
     @staticmethod
     def get_charachip(job)->Any:

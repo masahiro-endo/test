@@ -84,7 +84,7 @@ class FieldScene(BaseScene):
         # self.avator = Avator()
         # self.avator.pos = (GS, GS)
         for mem in g.party.memberList:
-            mem.pos = (GS, GS)
+            mem.pos = (GS * 10, GS)
 
     def doEncounted(self) -> bool:
         if random.randint(0, 300) == 0:
@@ -95,6 +95,30 @@ class FieldScene(BaseScene):
     def trans_combatScene(self):
         g.sceneStack.appendleft(CombatScene())
 
+    def calc_offset(self):
+        WIDTH, HEIGHT = pygame.display.get_surface().get_size()
+        MAP_WIDTH, MAP_HEIGHT = self.surface.get_size()
+        leader = g.party.memberList[0]
+
+        # 画面中央の座標とプレイヤー位置の差分
+        if (leader.pos[0] - (WIDTH / 2))==0:
+            pass
+
+        offsetx = leader.pos[0] + (leader.rect.width / 2) - (WIDTH / 2)
+        offsety = leader.pos[1] + (leader.rect.height / 2) - (HEIGHT / 2)
+
+        # 端ではスクロールしない
+        if offsetx < 0:
+            offsetx = 0 # 左端
+        elif offsetx > MAP_WIDTH - WIDTH:
+            offsetx = MAP_WIDTH - WIDTH # 右端
+
+        if offsety < 0:
+            offsety = 0
+        elif offsety > MAP_HEIGHT - HEIGHT:
+            offsety = MAP_HEIGHT- HEIGHT
+
+        return offsetx, offsety
 
     def update(self):
         super().update()
@@ -106,9 +130,17 @@ class FieldScene(BaseScene):
         super().draw(screen)
         WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 
-        screen.surface.blit(self.surface, (0,0), (0, 0, WIDTH, HEIGHT))
+        offsetx, offsety = self.calc_offset()
+        # screen.surface.blit(self.surface, (0,0), (0, 0, WIDTH, HEIGHT))
+        screen.surface.blit(self.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
+
         for mem in reversed(g.party.memberList):
-            screen.blit(mem.anime[mem.direction][mem.imgnum], mem.pos)
+            dx, dy = mem.pos
+            dx -= offsetx
+            dy -= offsety
+            # プレイヤー描画もoffset分ずらさないと駄目な模様
+            # screen.blit(mem.anime[mem.direction][mem.imgnum], mem.pos)
+            screen.blit(mem.anime[mem.direction][mem.imgnum], (dx, dy))
 
     def handler(self, keyboard):
         super().handler(keyboard)

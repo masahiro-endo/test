@@ -15,7 +15,31 @@ from UI import *
 
 
 
-class BaseCombatAct:
+class BaseAction:
+
+    class SEL:
+        WAIT = auto()
+        COMPLETE = auto()
+
+    class Parameter:
+        def __init__(self, key):
+            self.key = key
+
+    Params: Dict[Enum, Any] = {
+            SEL.COMPLETE  : Parameter,
+    }
+
+    Params[SEL.COMPLETE]    = Parameter(None)
+
+    def __init__(self):
+        self.status = self.SEL.WAIT
+        self._snd = None
+
+    def handler(self, keyboard):
+        pass
+
+
+class PlayerAction(BaseAction):
 
     class ACT:
         ATTACK = auto()
@@ -37,17 +61,12 @@ class BaseCombatAct:
     Params[ACT.ATTACK]    = Parameter("攻撃", None, "/sounds/剣の素振り2.mp3")
     Params[ACT.DEFENCE]   = Parameter("防御", None, "/sounds/ステータス治療1.mp3")
 
-    def __init__(self):
-        self._msg = ""
-        self._snd = None
-    
-class PlayerDicide(BaseCombatAct):
-
     def __init__(self, enemies):
         super().__init__()
         self.enemies = enemies
 
-class AIDicide(BaseCombatAct):
+
+class EnemyAction(BaseAction):
 
     '''
     WOLF
@@ -58,6 +77,42 @@ class AIDicide(BaseCombatAct):
         super().__init__()
         self.players = players # 攻撃対象が単体とは限らない
 
+
+class SelectAction(BaseAction):
+
+    def __init__(self, key, wnd, actor, parties):
+        super().__init__()
+        self.Params[self.SEL.COMPLETE] = key
+        self._wnd = wnd
+        
+        self.actor = actor
+        self.parties = parties
+
+    def update(self):
+        super().update()
+
+        for wnd in self._wnd:
+            if wnd is None: continue
+            if wnd.is_visible(): wnd.update()
+                    
+    def draw(self, screen):
+        super().draw(screen)
+
+        for wnd in self._wnd:
+            if wnd is None: continue
+            if wnd.is_visible(): wnd.draw(screen)
+
+
+    def handler(self, event):
+        super().handler(event)
+
+        for wnd in self._wnd:
+            if wnd is None: continue
+            if wnd.is_visible(): wnd.handler(event)
+
+        if keyboard[self.Params[self.SEL.COMPLETE]]: 
+                self.hide()
+                self.status = self.SEL.COMPLETE
 
 class PartyActTool():
 
@@ -85,23 +140,68 @@ class PartyActTool():
     Params[ACT.DEFENCE]   = Parameter((20, 60), (40, 45), "ぼうぎょ", False)
 
 
+class Turn:
+
+    _pause = deque()
+
+    def __init__(self, party):
+        self._charalive = []
+
+        for actor in party.member:
+            if not actor.is_dead():
+                self._charalive.append(actor)
+
+        for actor in self._charalive:
+            wnd = SelectWindow(Rect(20,300,120,140), PartyActTool.Params)
+            self._pause.append(SelectAction(keys.RETURN, wnd, actor, g.eneparties))
+
+        self._pause[0]._wnd.show()
+
+
+    def update(self):
+
+        if len(self._pause) > 0 and self._pause[0] != None:
+            wnd = self._pause[0]._wnd
+            if wnd.is_visible(): wnd.update()
+                    
+    def draw(self, screen):
+
+        if len(self._pause) > 0 and self._pause[0] != None:
+            wnd = self._pause[0]._wnd
+            if wnd.is_visible(): wnd.draw(screen)
+
+    def handler(self, event):
+
+        if len(self._pause) > 0 and self._pause[0] != None:
+            wnd = self._pause[0]._wnd
+            if wnd.is_visible(): wnd.handler(event)
+
+            sl = self._pause[0]
+            if sl.status == sl.SEL.COMPLETE:
+                self._pause.popleft() # 処理済みを除去
+                if len(self._pause[0]) > 0:
+                    self._pause[0]._wnd.show() # 次の選択を表示
+                else:
+                    pass
+                    # アクションを実行
+
 
 class CombatScene(BaseScene):
 
     def __init__(self):
-        self._actlist = deque()
-        self._wnd = deque()
+        self._actlist = deque() # 一時表示
+        self.visual = deque() # 常時表示
+
         '''
         wnd = MessageWindow(Rect(20,300,600,140))
         wnd.setText('なにか　とそうぐうした！')
         wnd.show()
         self._wnd.append(wnd)
-        '''
+
         wnd = SelectWindow(Rect(20,300,120,140), PartyActTool.Params)
         wnd.show()
         self._wnd.append(wnd)
 
-        '''
         wnd = ScriptWindow(Rect(20,300,600,140))
         wnd.textall = "１２３４５６７８９０/あいうえお/かきくけこ/さしすせそ/たちつてと/なにぬねの/はひふへほ/まみむめもやゆよわをん"
         wnd.show()
@@ -110,59 +210,71 @@ class CombatScene(BaseScene):
         wnd = StatusWindow(Rect(20,20,300,100), g.party)
         wnd.show()
         self._wnd.append(wnd)
-        '''
-        # self._actorimg = control.Method.load_image("./assets/images/npc/", "pngegg(32).png", -1)
+
+                # self._actorimg = control.Method.load_image("./assets/images/npc/", "pngegg(32).png", -1)
         # self._actorimg = pygame.transform.scale(self._actorimg, (200, 200))
         self._actorimg = None
         
         # self._actlist.appendleft(PlayerDicide())
         # self._actlist.appendleft(AIDicide())
 
+        wnd = MessageWindow(Rect(20,300,600,140))
+        wnd.setText('なにか　とそうぐうした！')
+        wnd.show()
+        self._actlist.append(WindowAction(keys.RETURN, wnd))
+        '''
+        self.turn = Turn(g.party)
+
+
+
     def update(self):
         super().update()
+        self.turn.update()
 
-        if len(self._actlist) > 0:
-            if not self._actlist[0]._snd is None:
-                self._actlist[0]._snd.play()
-                self._actlist[0]._snd = None
-
-        for wnd in self._wnd:
+        for wnd in self.visual:
             if wnd is None: continue
             if wnd.is_visible(): wnd.update()
 
+        if len(self._actlist) > 0:
+            action = self._actlist[0]
+            if not action._snd is None:
+                action._snd.play()
+                action._snd = None
+            if not action._wnd is None:
+                if action._wnd.is_visible(): action._wnd.update()
 
+            if action.status==action.SEL.COMPLETE:
+                self._actlist.popleft()
                     
     def draw(self, screen):
         super().draw(screen)
+        self.turn.draw(screen)
 
-        if not self._actorimg is None:
-            screen.blit(self._actorimg, (200, 100))
+        # if not self._actorimg is None:
+        #     screen.blit(self._actorimg, (200, 100))
 
-        for wnd in self._wnd:
+        for wnd in self.visual:
             if wnd is None: continue
             if wnd.is_visible(): wnd.draw(screen)
+
+        if len(self._actlist) > 0:
+            action = self._actlist[0]
+            if not action._wnd is None:
+                if action._wnd.is_visible(): action._wnd.draw(screen)
 
 
     def handler(self, event):
         super().handler(event)
+        self.turn.handler(event)
 
-        for wnd in self._wnd:
+        for wnd in self.visual:
             if wnd is None: continue
             if wnd.is_visible(): wnd.handler(event)
 
-        '''
-        if event.type == KEYDOWN:
-            
-            if self._wnd.is_visible:
-                self._wnd.hide()
-                
-            if event.key == K_SPACE:
-                g.currentScene.popleft()
+        if len(self._actlist) > 0:
+            action = self._actlist[0]
+            if not action._wnd is None:
+                if action._wnd.is_visible(): action._wnd.handler(event)
 
-            if event.key == K_RETURN:
-                if len(self._actlist) > 0:
-                    self._wnd.settext(self._actlist[0]._msg)
-                    self._actlist.popleft()
-        '''
 
 
