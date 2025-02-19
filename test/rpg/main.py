@@ -66,10 +66,11 @@ class Game:
         g.party.addMember(avator1)
         g.party.addMember(avator2)
         g.map = []
-        g.blocks = deque()
         '''
+        g.blocks = deque()
         g.sceneStack = deque()
-        g.sceneStack.appendleft(CombatScene())
+        # g.sceneStack.appendleft(CombatScene())
+        g.sceneStack.appendleft(FieldScene())
 
         g.mainDir = os.path.dirname(__file__)
 
