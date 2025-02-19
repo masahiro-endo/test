@@ -83,7 +83,7 @@ class FieldScene(BaseScene):
 
         # self.avator = Avator()
         # self.avator.pos = (GS, GS)
-        for mem in g.party.memberList:
+        for mem in g.party.member:
             mem.pos = (GS * 10, GS)
 
     def doEncounted(self) -> bool:
@@ -98,7 +98,7 @@ class FieldScene(BaseScene):
     def calc_offset(self):
         WIDTH, HEIGHT = pygame.display.get_surface().get_size()
         MAP_WIDTH, MAP_HEIGHT = self.surface.get_size()
-        leader = g.party.memberList[0]
+        leader = g.party.member[0]
 
         # 画面中央の座標とプレイヤー位置の差分
         if (leader.pos[0] - (WIDTH / 2))==0:
@@ -134,7 +134,7 @@ class FieldScene(BaseScene):
         # screen.surface.blit(self.surface, (0,0), (0, 0, WIDTH, HEIGHT))
         screen.surface.blit(self.surface, (0,0), (offsetx, offsety, WIDTH, HEIGHT))
 
-        for mem in reversed(g.party.memberList):
+        for mem in reversed(g.party.member):
             dx, dy = mem.pos
             dx -= offsetx
             dy -= offsety
@@ -144,7 +144,7 @@ class FieldScene(BaseScene):
 
     def handler(self, keyboard):
         super().handler(keyboard)
-        leader = g.party.memberList[0]
+        leader = g.party.member[0]
 
         if keyboard[keys.RETURN]: 
             pass

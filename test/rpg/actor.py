@@ -29,12 +29,6 @@ class BaseCharacter:
             res = True
         return res
 
-    def update(self):
-        pass
-
-    def draw(self, screen):
-        pass
-
     def __str__(self):
         return "CHARA,%s,%d,%d,%d,%d,%s" % (self.name,self.x,self.y,self.direction,self.movetype,self.message)
 
@@ -45,9 +39,6 @@ class Player(BaseCharacter):
         self.name = name
         self.hp = AvatorTool.Params[job].hp
         self.mp = AvatorTool.Params[job].mp
-
-    def update(self):
-        pass
 
 class Enemy(BaseCharacter):
     def __init__(self, name, job):
@@ -62,7 +53,7 @@ class BaseParty():
     member = []
 
     def __init__(self):
-        self.member = []
+        self.member = deque()
 
     def addMember(self, chr):
         self.member.append(chr)
@@ -91,7 +82,7 @@ class PlayerParty(BaseParty):
     def __init__(self):
         super().__init__()
 
-        self.member = deque()
+        self.avator = deque()
         self.footstamp = deque()
 
         if __debug__:
@@ -104,14 +95,14 @@ class PlayerParty(BaseParty):
             self.footstamp.pop()
 
     def set_memberPos(self):
-        for i in range(len(self.memberList)):
+        for i in range(len(self.member)):
             if len(self.footstamp) > (i*5):
                 history = self.footstamp[i*5]
                 x = history.rect.left
                 y = history.rect.top
-                self.member[i].pos = (x, y)
-                self.member[i].rect = history.rect
-                self.member[i].direction = history.direction
+                self.avator[i].pos = (x, y)
+                self.avator[i].rect = history.rect
+                self.avator[i].direction = history.direction
 
     def initialize(self):
         self.__init__()
@@ -120,6 +111,7 @@ class PlayerParty(BaseParty):
     def addMember(self, chr: Player):
         if len(self.member) < 5:
             self.member.append(chr)
+            self.avator.append(chr)
         else:
             raise Exception("can't add a member.")
 
