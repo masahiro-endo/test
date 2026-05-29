@@ -1,23 +1,24 @@
-
-import os
-import sys
-os.chdir(os.path.dirname(__file__))
-sys.path.append(os.path.dirname(__file__))
+import pyxel
+from scene import SceneManager
 
 
 
+class App:
+
+    def __init__(self):
+        self.mgr = SceneManager()
+        pyxel.init(200, 200)
+        pyxel.run(self.update, self.draw)
+
+    def update(self):
+        self.mgr.update()
+
+    def draw(self):
+        pyxel.cls(0)
+        self.mgr.draw()
 
 
-def main():
-    pass
 
 
 
-
-
-
-
-if __name__ == '__main__':
-	main()
-
-
+App()
