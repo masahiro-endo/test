@@ -1,104 +1,101 @@
 import pyxel
 from enum import Enum, auto
+from basestate import *
 
 
 
-class SCENE(Enum):
+class Scene():
+    def __init__(self):
+        self.context = SceneStateContext(self, STATE.Title)
+
+    def update(self):
+        self.context.update()
+
+    def Title(self):
+        self.context.changeState(STATE.Title)
+
+    def Main(self):
+        self.context.changeState(STATE.Main)
+
+    def End(self):
+        self.context.changeState(STATE.End)
+
+
+
+class STATE(Enum):
     Title = auto()
     Main = auto()
     End = auto()
 
-class COMMAND(Enum):
-    Insert = auto()
-    Pop = auto()
-    Push = auto()
-
-class StateReturn():
-    def __init__(self, scene, cmd):
-        self.scene = scene
-        self.command = cmd
 
 
 
 
-class SceneManager():
+class SceneStateContext():
     
-    def __init__(self):
-        self.scene = {
-            SCENE.Title: TitleScene(self),
-            SCENE.Main: MainScene(self),
-            SCENE.End: EndScene(self),
+    def __init__(self, scene, initState):
+        self.state = initState
+        self.scene = scene
+        self.table = {
+            STATE.Title: SceneState_Title(self),
+            STATE.Main: SceneState_Main(self),
+            STATE.End: SceneState_End(self),
         }
         self.currentScene = None
-        self.changeState(self.scene[SCENE.Title])
+        self.changeState(STATE.Title)
 
     def update(self):
-        res = self.currentScene.update()
-        if (res != None): 
-            self.changeState(res.scene)
+        self.currentScene.update()
 
     def draw(self):
         self.currentScene.draw()
 
-    def changeState(self, nextScene):
+    def changeState(self, nextState):
+        tbl = self.table[nextState]
         if (self.currentScene != None): 
             self.currentScene.exit()
 
-        self.currentScene = nextScene
+        self.currentScene = tbl
         self.currentScene.enter()
 
 
-class BaseScene():
-    def update(self) -> StateReturn:
-        pass
 
-    def draw(self):
-        pass
 
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
-
-class TitleScene(BaseScene):
+class SceneState_Title(BaseState):
     def __init__(self, parent):
-        self.parent = parent
+        self.state = STATE.Title
+        self.scene = parent
 
-    def update(self) -> StateReturn:
-        res = None
+    def update(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
-            res = StateReturn(self.parent.scene[SCENE.Main], COMMAND.Push)
-        return res
+            self.scene.Main()
 
     def draw(self):
         pyxel.text(75,  0, "     [Title]     ", 14)
         pyxel.text(75, 75, "press [space] key", 14)
 
 
-class MainScene(BaseScene):
+class SceneState_Main(BaseState):
     def __init__(self, parent):
-        self.parent = parent
+        self.state = STATE.Main
+        self.scene = parent
 
-    def update(self) -> StateReturn:
-        res = None
+    def update(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
-            res = StateReturn(self.parent.scene[SCENE.End], COMMAND.Push)
-        return res
+            self.scene.End()
 
     def draw(self):
         pyxel.text(75, 0, "now playing...", 14)
 
 
-class EndScene(BaseScene):
+class SceneState_End(BaseState):
     def __init__(self, parent):
-        self.parent = parent
+        self.state = STATE.End
+        self.scene = parent
 
-    def update(self) -> StateReturn:
-        res = None
+    def update(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
-            res = StateReturn(self.parent.scene[SCENE.Title], COMMAND.Push)
-        return res
+            self.scene.Title()
 
     def draw(self):
         pyxel.text(60, 0, "thank you for playing!", 14)
