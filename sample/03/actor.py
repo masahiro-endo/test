@@ -28,15 +28,39 @@ class Actor():
     def __init__(self):
         self.context = ActorStateContext(self, STATE.Idle)
 
-    def init_pos(self):
-        self.x = 0
-        self.y = 0
-        self.vx = 0
-        self.vy = 0
-        self.number_eyes = random.randint(1, 6)
+    def init_pos(self, x=0, y=0, ut=0, er=0):
+        self.x = x
+        self.y = y
+        self.vx = -1.0 + random.random() * 2
+        self.vy = -4.0 * random.random() - 2.0
+        self.frames_until_throw = ut
+        self.frames_end_roll = er
 
+        self.number_eyes = random.randint(1, 6)
+    
+    def bounce(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.vy += 0.35
+        if not (0 < self.x < pyxel.width - 8):
+            self.vx = -self.vx
+        if self.y > pyxel.height - 16:
+            self.y = pyxel.height - 16
+            if self.vy < 2:
+                self.x = self.init_x
+                self.y = self.init_y
+            else:
+                self.vy = -self.vy * 0.5                
+        
     def update(self):
         self.context.update()
+
+    def draw(self):
+        self.context.draw()
+        pyxel.blt(self.x, self.y, 0,
+                  dice_dict[self.number_eyes-1][0],
+                  dice_dict[self.number_eyes-1][1],
+                  8, 8)
 
     def Idle(self):
         self.context.changeState(STATE.Idle)
@@ -44,6 +68,8 @@ class Actor():
     def Roll(self):
         self.context.changeState(STATE.Roll)
 
+    def Release(self):
+        self.context.changeState(STATE.Release)
 
 
 
@@ -64,7 +90,7 @@ class ActorState_Idle(BaseState):
         self.actor = actor
 
     def update(self):
-        if pyxel.btnp(pyxel.MOUSE_LEFT_BUTTON):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             self.actor.Roll
 
     def draw(self):
@@ -75,14 +101,19 @@ class ActorState_Roll(BaseState):
     def __init__(self, actor):
         self.state = STATE.Roll
         self.actor = actor
+        self.tick = 0
 
     def enter(self):
         pass
 
     def update(self):
-        if pyxel.btnp(pyxel.MOUSE_LEFT_BUTTON):
+        self.tick += 1
+        if self.tick % 3 == 0:
+            self.actor.number_eyes = random.randint(1, 6)
+
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
             self.actor.Release
-        if pyxel.btnp(pyxel.MOUSE_RIGHT_BUTTON):
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
             self.actor.Idle
 
     def draw(self):
@@ -93,12 +124,17 @@ class ActorState_Release(BaseState):
     def __init__(self, actor):
         self.state = STATE.Release
         self.actor = actor
+        self.tick = 0
 
     def enter(self):
         pass
 
     def update(self):
-        pass
+        self.tick += 1
+        self.actor.bounce()
+
+        if self.tick % 3 == 0:
+            self.actor.number_eyes = random.randint(1, 6)
 
     def draw(self):
         pass
@@ -121,6 +157,9 @@ class ActorStateContext():
     def update(self):
         self.currentState.update()
 
+    def draw(self):
+        self.currentState.draw()
+
     def changeState(self, nextState):
         next = self.table[nextState]
         if (self.currentState != None): 
@@ -133,84 +172,44 @@ class ActorStateContext():
 
 
 
-class Die:
+class Game:
+    class Setting:
+        class DisplayResolution():
+            CUSTOM = (160, 120)
+            VGA = (640, 480)
+            SVGA = (800, 600)
+            XGA = (1024, 768)
+        
+        class ActorPosition():
+            Default = (80, 50)
+
+
+
+
+
+class GameMaster():
+
     def __init__(self):
-        self.init()
-    
-    def init(self):
-        self.x = 0
-        self.y = 0
-        self.vx = 0
-        self.vy = 0
-        self.face_value = 1
-        self.active = False
-        self.is_roll = False 
-        self.fcnt = 0
-        self.frames_until_throw = 0
-        self.frames_end_roll = 0
-        self.roll_behavior = "standard"		# "standard", "bouncy"
-    
-    def get_value(self):
-        return self.face_value
-    
-    def prepare_to_roll(self, x, y, frames_until_throw, frames_end_roll, roll_behavior="standard"):
-        self.active = True
-        self.face_value = random.randint(1, 6)
-        self.x = x
-        self.y = y
-        self.init_x = x
-        self.init_y = y
-        self.vx = -1.0 + random.random() * 2
-        self.vy = -4.0 * random.random() - 2.0
-        self.frames_until_throw = frames_until_throw
-        self.frames_end_roll = frames_end_roll
-        self.roll_behavior = roll_behavior
+        pass
+
+    def grab_dice(self, cnt):
+        self.dice = [Actor() for i in range(cnt)]
+        x, y = Game.Setting.ActorPosition.Default
+
+        i = 0
+        for die in self.dice:
+            frm_ut = random.randint(5, 20)
+            frm_er = 30 + i*12
+            die.init_pos(x + i*9, y, frm_ut, frm_er)
+            i += 1
         
     def update(self):
-        self.fcnt += 1
-        if self.fcnt > self.frames_until_throw:
-            if self.is_roll:
-                if self.roll_behavior == "standard": self.roll_standard()
-                elif self.roll_behavior == "bouncy": self.roll_bouncy()
-        elif self.fcnt == self.frames_until_throw:
-            self.is_roll = True
-        else:
-            return
-
-    def roll_standard(self):
-        if self.fcnt % 3 == 0:
-            self.face_value = pyxel.rndi(1, 6)
-        if self.fcnt >= self.frames_end_roll:
-            self.is_roll = False       
-
-    def roll_bouncy(self):
-        self.x += self.vx
-        self.y += self.vy
-        self.vy += 0.35
-        if not (0 < self.x < pyxel.width - 8):
-            self.vx = -self.vx
-        if self.y > pyxel.height - 16:
-            self.y = pyxel.height - 16
-            if self.vy < 2:
-                self.is_roll = False
-                self.x = self.init_x
-                self.y = self.init_y
-            else:
-                self.vy = -self.vy * 0.5                
-        
-        if self.fcnt % 3 == 0:
-            self.face_value = pyxel.rndi(1, 6)
-        
-
+        for die in self.dice:
+            die.update()
+                
     def draw(self):
-        pyxel.blt(self.x, self.y, 0,
-                  dice_dict[self.face_value-1][0],
-                  dice_dict[self.face_value-1][1],
-                  8, 8)
-
-
-
-
+        for die in self.dice:
+            die.draw()
 
 
 
