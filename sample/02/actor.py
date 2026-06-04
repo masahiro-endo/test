@@ -3,6 +3,17 @@ import random
 from enum import Enum, auto
 from basestate import *
 
+# IInitializable：初期化が必要なもの
+# IPausable：ポーズに反応するもの
+# IResettable：リセット対象のもの
+
+# EntityManager
+
+# GameManagerは「流れ」だけを見る
+# Stateは「振る舞い」だけを見る
+# Entityは「自分がどう反応するか」だけを見る
+
+
 # 3-2. Stateパターンを構成する3つの役者
 # Stateパターンは、主に次の3つで構成されます。
 
@@ -22,6 +33,27 @@ dice_dict = [
     (8*4, 128),
     (8*5, 128)
 ]
+
+
+class Game:
+    class Setting:
+        class DisplayResolution():
+            CUSTOM = (160, 120)
+            VGA = (640, 480)
+            SVGA = (800, 600)
+            XGA = (1024, 768)
+        
+    class Const:
+        ActorPosition = (60, 60)
+
+    class Param:
+        pass
+
+    class Debug:
+        TextPos = (70, 50)
+
+secrets
+
 
 
 class Actor():
@@ -172,22 +204,6 @@ class ActorStateContext():
 
 
 
-class Game:
-    class Setting:
-        class DisplayResolution():
-            CUSTOM = (160, 120)
-            VGA = (640, 480)
-            SVGA = (800, 600)
-            XGA = (1024, 768)
-        
-        class ActorPosition():
-            Default = (60, 60)
-
-    class Debug:
-        TextPos = (70, 50)
-
-
-
 
 class GameMaster():
 
@@ -197,7 +213,7 @@ class GameMaster():
     def grab_dice(self, cnt):
         self.total = 0
         self.dice = [Actor() for i in range(cnt)]
-        x, y = Game.Setting.ActorPosition.Default
+        x, y = Game.Const.ActorPosition
 
         i = 0
         for die in self.dice:
