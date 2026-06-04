@@ -13,7 +13,7 @@ class App:
         pyxel.load(pyxres_name)
 
         self.gm = GameMaster()
-        self.gm.grab_dice(5)
+        self.gm.grab_dice(3)
         pyxel.run(self.update, self.draw)
 
     def update(self):

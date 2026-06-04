@@ -33,8 +33,8 @@ class Actor():
         self.y = y
         self.vx = -1.0 + random.random() * 2
         self.vy = -4.0 * random.random() - 2.0
-        self.frames_until_throw = ut
-        self.frames_end_roll = er
+        self.ut = ut
+        self.er = er
 
         self.number_eyes = random.randint(1, 6)
     
@@ -44,11 +44,11 @@ class Actor():
         self.vy += 0.35
         if not (0 < self.x < pyxel.width - 8):
             self.vx = -self.vx
-        if self.y > pyxel.height - 16:
-            self.y = pyxel.height - 16
+        if self.y > pyxel.height - 16 - self.er:
+            self.y = pyxel.height - 16 - self.er
             if self.vy < 2:
-                self.x = self.init_x
-                self.y = self.init_y
+                self.Idle()
+                self.init_pos(self.x, self.y)
             else:
                 self.vy = -self.vy * 0.5                
         
@@ -91,7 +91,7 @@ class ActorState_Idle(BaseState):
 
     def update(self):
         if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            self.actor.Roll
+            self.actor.Roll()
 
     def draw(self):
         pass
@@ -108,13 +108,13 @@ class ActorState_Roll(BaseState):
 
     def update(self):
         self.tick += 1
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            self.actor.Release()
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
+            self.actor.Idle()
+
         if self.tick % 3 == 0:
             self.actor.number_eyes = random.randint(1, 6)
-
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            self.actor.Release
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_RIGHT):
-            self.actor.Idle
 
     def draw(self):
         pass
@@ -181,8 +181,10 @@ class Game:
             XGA = (1024, 768)
         
         class ActorPosition():
-            Default = (80, 50)
+            Default = (60, 60)
 
+    class Debug:
+        TextPos = (70, 50)
 
 
 
@@ -193,6 +195,7 @@ class GameMaster():
         pass
 
     def grab_dice(self, cnt):
+        self.total = 0
         self.dice = [Actor() for i in range(cnt)]
         x, y = Game.Setting.ActorPosition.Default
 
@@ -204,10 +207,14 @@ class GameMaster():
             i += 1
         
     def update(self):
+        self.total = 0
         for die in self.dice:
             die.update()
+            self.total += die.number_eyes
                 
     def draw(self):
+        x, y = Game.Debug.TextPos
+        pyxel.text(x, y, str(self.total).zfill(2), pyxel.COLOR_GREEN)
         for die in self.dice:
             die.draw()
 
