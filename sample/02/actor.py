@@ -52,7 +52,6 @@ class Game:
     class Debug:
         TextPos = (70, 50)
 
-secrets
 
 
 

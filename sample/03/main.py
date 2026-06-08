@@ -1,12 +1,12 @@
-# title: Pyxel Tiny DRPG
-# author: Shiromofu Factory
-# desc: Tiny 2D dungeon RPG
-# site: https://github.com/shiromofufactory/pyxel-tiny-drpg
-# license: MIT
-# version: 1.0
 import pyxel as px
 import json
 import copy
+from UI import *
+from actor import *
+import appconfig
+from scenestate import *
+
+
 
 IS_WEB = True
 
@@ -15,293 +15,38 @@ try:
 except:
     IS_WEB = False
 
-# 呪文インデックス定数
-SPELL_FIRE = 0
-SPELL_RETURN = 1
-SPELL_HEAL = 2
-SPELL_BURST = 3
-
-BDF = None
 
 
-# ウィンドウオブジェクト
-class Window:
-    all = {}
-
-    def __init__(self, key, x1, y1, x2, y2, texts):
-        self.key = key
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.texts = texts
-
-    def draw(self):
-        x1 = self.x1 * 8
-        y1 = self.y1 * 8
-        x2 = self.x2 * 8
-        y2 = self.y2 * 8
-        px.blt(x1, y1, 0, 0, 48, 8, 8)
-        px.blt(x2 - 8, y1, 0, 8, 48, 8, 8)
-        px.blt(x1, y2 - 8, 0, 0, 56, 8, 8)
-        px.blt(x2 - 8, y2 - 8, 0, 8, 56, 8, 8)
-        x = self.x1 + 1
-        while x < self.x2 - 1:
-            px.blt(x * 8, y1, 0, 16, 48, 8, 8)
-            px.blt(x * 8, y2 - 8, 0, 16, 56, 8, 8)
-            x += 1
-        y = self.y1 + 1
-        while y < self.y2 - 1:
-            px.blt(x1, y * 8, 0, 24, 48, 8, 8)
-            px.blt(x2 - 8, y * 8, 0, 24, 56, 8, 8)
-            y += 1
-        px.rect(x1 + 8, y1 + 8, x2 - x1 - 16, y2 - y1 - 16, 0)
-        for pos, text in enumerate(self.texts):
-            if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
-                draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
-
-    @classmethod
-    def open(cls, key, x1, y1, x2, y2, texts=[]):
-        if key in cls.all:
-            cls.all[key].texts = texts
-        else:
-            cls.all[key] = cls(key, x1, y1, x2, y2, texts)
-        return cls.all[key]
-
-    @classmethod
-    def close(cls):
-        windows_copy = copy.deepcopy(cls.all)
-        for key in windows_copy:
-            del cls.all[key]
-        return
-
-
-# カーソル（選択肢の ▶︎）
-class Cursor:
-    def __init__(self, key, list_x, y, cancel_pos=None):
-        self.key = key
-        self.list_x = list_x
-        self.y = y
-        self.pos = 0
-        self.cancel_pos = cancel_pos
-        self.moved = False
-
-    def draw(self):
-        x = self.list_x[self.pos]
-        px.blt(x * 8, self.y * 8, 0, 32, 48, 8, 8)
-
-    def update(self, btn):
-        if btn["r"] or btn["l"]:
-            if self.moved:
-                return
-            dist = 1 if btn["r"] else -1
-            self.pos = (self.pos + dist) % len(self.list_x)
-            self.moved = True
-        else:
-            self.moved = False
-        if btn["a"]:
-            px.play(3, 35)
-            return self.pos
-        elif btn["b"]:
-            return self.cancel_pos
-        return None
-
-
-# フィールド用障害物（kind = 0:ドア 1:宝箱 2:人）
-class Obstacle:
-    def __init__(self, x, y, z, kind=0, val=0):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.kind = kind
-        self.val = val
-
-    def draw(self, pl_x, pl_y, pl_z):
-        ox = self.x * 16 - pl_x
-        oy = self.y * 16 - pl_y
-        if abs(ox) < 64 and abs(oy) < 64 and abs(self.z == pl_z):
-            if self.kind == 0:
-                u, v = 2, 1
-            elif self.kind == 1:
-                u, v = 3, 1
-            else:
-                u, v = 2 + (px.frame_count % 30) // 15, 2
-            px.blt(56 + ox, 48 + oy, 0, u * 16, v * 16, 16, 16, 1)
-
-
-# 戦闘用キャラクタ（自分とモンスター）
-class Actor:
-    def __init__(self, name, hp, mp, atk, spd, resist=0, img=None, gold=0):
-        self.name = name
-        self.mhp = hp
-        self.hp = hp
-        self.mmp = mp
-        self.mp = mp
-        self.atk = atk
-        self.spd = spd
-        self.resist = resist  # 呪文（ファイア）耐性
-        self.img = img  # モンスターの場合の画像イメージ
-        self.gold = gold  # 勝利時報酬
-
-
-# 呪文
-class Spell:
-    def __init__(self, name, mp, on_menu, desc):
-        self.name = name
-        self.mp = mp
-        self.on_menu = on_menu
-        self.desc = desc
-
-    def get_mp(self, pl):
-        # ヒールやバーストは消費MPが状況依存
-        if self.name == "ヒール":
-            return min(pl.mp, (pl.mhp - pl.hp + 4) // 5)
-        elif self.name == "バースト":
-            return pl.mp
-        return self.mp
-
-
-### ユーティリティ関数 ###
-
-
-# 全角化
-def zen(val):
-    h2z = str.maketrans(
-        " 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ /+-:*#()[]",
-        "　１２３４５６７８９０ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ　／＋－：＊＃（）［］",
-    )
-    return str(val).translate(h2z)
-
-
-# テキスト描画
-def draw_text(x, y, t):
-    px.text(x * 8, y * 8 + 4, zen(t), 7, BDF)
-
-
-# セーブファイル名
-def get_data_file():
-    return px.user_data_dir("shiromofu factory", "tinyDRPG") + "save.json"
-
-
-# ボタン取得
-def get_btn_state():
-    btn = {
-        "u": px.btn(px.KEY_UP) or px.btn(px.GAMEPAD1_BUTTON_DPAD_UP),
-        "d": px.btn(px.KEY_DOWN) or px.btn(px.GAMEPAD1_BUTTON_DPAD_DOWN),
-        "l": px.btn(px.KEY_LEFT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_LEFT),
-        "r": px.btn(px.KEY_RIGHT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_RIGHT),
-        "a": px.btnp(px.KEY_Z, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_A, 10, 2),
-        "b": px.btnp(px.KEY_X, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_B, 10, 2),
-    }
-    return btn
-
-
-# パディング左よせ
-def spacing(val, length):
-    return zen(val).ljust(length)[-length:]
-
-
-# パディング右よせ
-def pad(val, length, fill=" "):
-    return zen(val).rjust(length, fill)[-length:]
 
 
 # Pyxel
 class App:
     def __init__(self):
-        global BDF
+        # global BDF
+        config = appconfig.get_settings()
+        config.screen = Screen()
+        self.screen = appconfig.get_screen()
+
         px.init(
             128, 128, title="Pyxel Tiny DRPG", quit_key=px.KEY_NONE, display_scale=2
         )
         px.load("assets.pyxres")
-        BDF = px.Font("k8x12S.bdf")  # フォントファイル
-        # 障害物（ドア、宝箱、NPC）データ
-        self.obstacles = {
-            "0-1": Obstacle(8, 19, 0, 2),
-            "0-2": Obstacle(3, 19, 0, 2),
-            "0-3": Obstacle(8, 28, 0, 2),
-            "0-4": Obstacle(12, 19, 0, 2),
-            "0-5": Obstacle(12, 28, 0, 2),
-            "0-6": Obstacle(11, 16, 0, 1),
-            "0-7": Obstacle(11, 17, 0, 1, 100),
-            "0-8": Obstacle(4, 25, 0, 0),
-            "0-9": Obstacle(5, 27, 0, 2),
-            "1-1": Obstacle(4, 6, 1, 0),  # ドア1（直行）
-            "1-2": Obstacle(27, 3, 1, 2),
-            "1-3": Obstacle(7, 21, 1, 1, 50),
-            "1-4": Obstacle(8, 12, 1, 1, 6),
-            "1-5": Obstacle(12, 12, 1, 1, 110),
-            "1-6": Obstacle(16, 24, 1, 1, 80),
-            "1-7": Obstacle(24, 10, 1, 1),  # カギ1
-            "1-8": Obstacle(13, 8, 1, 0),  # ドア2（宝部屋）
-            "1-9": Obstacle(8, 7, 1, 1, 100),
-            "1-10": Obstacle(11, 7, 1, 1, 100),
-            "1-11": Obstacle(8, 9, 1, 1, 100),
-            "1-12": Obstacle(11, 9, 1, 1, 100),
-            "2-1": Obstacle(17, 10, 2, 1, 170),
-            "2-2": Obstacle(17, 20, 2, 1, 73),
-            "2-3": Obstacle(21, 10, 2, 1, 25),
-            "2-4": Obstacle(21, 20, 2, 1, 256),
-            "2-5": Obstacle(21, 4, 2, 2),
-            "2-6": Obstacle(28, 28, 2, 1),  # カギ2
-            "2-7": Obstacle(23, 4, 2, 0),  # ドア3（ヒール）
-            "3-1": Obstacle(6, 22, 3, 2),
-            "3-2": Obstacle(4, 6, 3, 0),  # ドア4（直行）
-            "3-3": Obstacle(24, 12, 3, 1),  # カギ3
-            "3-4": Obstacle(25, 12, 3, 1, 1000),
-            "3-5": Obstacle(4, 10, 3, 0),  # ドア5
-            "4-1": Obstacle(16, 11, 4, 1),  # カギ4
-            "4-2": Obstacle(18, 25, 4, 1),  # カギ5
-            "4-3": Obstacle(4, 27, 4, 2),
-        }
-        # 会話イベントデータ
-        self.talks = {
-            "0-1": ["ちか5かいに ねむる", "ひほうを さがしてまいれ"],
-            "0-2": ["いずみのみずを のむと", "HPとMPが かいふくするぞ"],
-            "0-4": ["XキーかBボタンで", "メニューを ひらけるぞ"],
-            "0-5": ["とびらを あけるには", "カギが ひつようだ"],
-            "0-9": ["このさきには", "モンスターが でるぜ"],
-            "1-2": ["おまえには もう", "おしえることは ないよ"],
-            "2-5": ["まいった！"],
-            "3-1": ["チクショウ！"],
-        }
-        # モンスターデータ
-        self.monsters = (
-            ["かぼちゃ", 12, 0, 6, 12, 0, 0, 20],
-            ["こおに", 24, 0, 10, 13, 0, 1, 40],
-            ["おにび", 32, 2, 14, 18, 1, 2, 80],
-            ["ゆうれい", 40, 0, 17, 32, 0, 3, 160],
-            ["にんじゃ", 64, 0, 34, 28, 0, 4, 320],
-            ["まどうし", 120, 4, 8, 15, 0, 5, 0],
-            ["だてんし", 200, 0, 20, 27, 1, 6, 0],
-            ["めがみ", 400, 0, 99, 99, 0, 7, 0],
-        )
-        # 呪文データ
-        self.spells = [
-            Spell(
-                "ファイア", 2, False, ["ちいさな ひのたまを", "てきにぶつけて ダメージ"]
-            ),
-            Spell("リターン", 6, True, ["スタートいちに", "テレポートする"]),
-            Spell("ヒール", 0, True, ["HPを かいふく", "かいふくしたぶんMPをつかう"]),
-            Spell(
-                "バースト",
-                0,
-                False,
-                ["すべての まりょくを", "てきにぶつけて だいダメージ"],
-            ),
-        ]
+        config.BDF = px.Font("k8x12S.bdf")  # フォントファイル
         self.cur = None
         self.wait = False
         self.bgm = None
-        self.welcome_show()
+        # self.welcome_show()
+        self.scene = ""
         px.run(self.update, self.draw)
 
     # pyxel updateメイン
     def update(self):
         # ゲーム時間カウント
-        if self.scene != "welcome":
-            self.frames += 1
+        # if self.scene != "welcome":
+        #     self.frames += 1
+        self.screen.update()
         btn = get_btn_state()
+
         # 十字キー押しっぱなし防止
         if self.wait and (btn["u"] or btn["d"] or btn["r"] or btn["l"]):
             return
@@ -443,23 +188,24 @@ class App:
         # フィールド用update処理
         elif self.scene == "field":
             # 操作受付
-            if not self.moving:
-                self.dy = btn["d"] - btn["u"]
-                self.dx = btn["r"] - btn["l"] if not self.dy else 0
-                if self.dy or self.dx:
-                    self.move_start()
-                elif btn["a"]:
-                    Window.close()
-                elif btn["b"]:  # メニュー呼び出し
-                    self.menu_show()
-                    self.scene = "menu"
-            # 移動実処理
-            else:
-                self.dy += self.spd * ((self.dy > 0) - (self.dy < 0))
-                self.dx += self.spd * ((self.dx > 0) - (self.dx < 0))
-                # 移動終了
-                if (self.dy % 16, self.dx % 16) == (0, 0):
-                    self.move_end()
+            # if not self.moving:
+            #     self.dy = btn["d"] - btn["u"]
+            #     self.dx = btn["r"] - btn["l"] if not self.dy else 0
+            #     if self.dy or self.dx:
+            #         self.move_start()
+            #     elif btn["a"]:
+            #         Window.close()
+            #     elif btn["b"]:  # メニュー呼び出し
+            #         self.menu_show()
+            #         self.scene = "menu"
+            # # 移動実処理
+            # else:
+            #     self.dy += self.spd * ((self.dy > 0) - (self.dy < 0))
+            #     self.dx += self.spd * ((self.dx > 0) - (self.dx < 0))
+            #     # 移動終了
+            #     if (self.dy % 16, self.dx % 16) == (0, 0):
+            #         self.move_end()
+            pass
         # バトル用update処理（ターン送り）
         elif self.scene == "battle":
             if btn["a"] or btn["b"]:
@@ -484,10 +230,13 @@ class App:
     # pyxel drawメイン
     def draw(self):
         px.cls(0)
+        self.screen.draw()
+
         # 起動画面用draw処理
         if self.scene == "welcome":
-            draw_text(3, 2, "Pyxel Tiny")
-            draw_text(6, 4, "DRPG")
+            pass
+            # draw_text(3, 2, "Pyxel Tiny")
+            # draw_text(6, 4, "DRPG")
         # フィールド用draw処理
         elif self.scene == "field":
             # マップ
@@ -516,105 +265,27 @@ class App:
             v = self.ms.img // 4 * 64 + 64
             px.blt(0, 0, 0, u, v, 64, 64)
         # ウィンドウ
-        for key in Window.all:
-            Window.all[key].draw()
+        # for key in Window.all:
+        #     Window.all[key].draw()
         # カーソル
-        if self.cur:
-            self.cur.draw()
+        # if self.cur:
+        #     self.cur.draw()
 
     ### システム関連 ###
 
-    # 起動画面ウィンドウ生成
-    def welcome_show(self):
-        self.message([" New Cont Exit", " (Zキー or Aボタン)"])
-        self.cur = Cursor("welcome", [1, 5, 10], 12)
-        # すでにデータがある場合、カーソル位置をContにあわせる
-        if self.load_data():
-            self.cur.pos = 1
-        self.scene = "welcome"
-        self.play_bgm(1)
 
-    # ニューゲーム
-    def new_game(self):
-        self.pl = Actor("あなた", 30, 6, 12, 12)
-        self.go_start_location()
-        self.gold = 0
-        self.keys = 0  # カギの数
-        self.flags = []  # フラグ（宝箱、扉などの判定用）
-        self.enc = 0  # エンカウント
-        self.frames = 0
 
-    # データロード
-    def load_data(self):
-        try:
-            if IS_WEB:
-                data_str = window.localStorage.getItem("pyxel-tiny-drpg")
-            else:
-                with open(get_data_file(), mode="r", encoding="utf-8") as f:
-                    data_str = f.read()
-            data = json.loads(data_str)
-            self.x = data["x"]
-            self.y = data["y"]
-            self.z = data["z"]
-            self.gold = data["gold"]
-            self.keys = data["keys"]
-            self.flags = data["flags"]
-            self.enc = data["enc"]
-            self.frames = data["frames"]
-            self.pl = Actor(
-                data["name"],
-                data["mhp"],
-                data["mmp"],
-                data["atk"],
-                data["spd"],
-            )
-            self.pl.hp = data["hp"]
-            self.pl.mp = data["mp"]
-            return True
-        except Exception:
-            # ロード失敗（初回プレイ）
-            self.new_game()
-            return False
 
-    # データセーブ
-    def save_data(self):
-        try:
-            data = {
-                "x": self.x,
-                "y": self.y,
-                "z": self.z,
-                "gold": self.gold,
-                "keys": self.keys,
-                "flags": self.flags,
-                "enc": self.enc,
-                "frames": self.frames,
-                "name": self.pl.name,
-                "hp": self.pl.hp,
-                "mhp": self.pl.mhp,
-                "mp": self.pl.mp,
-                "mmp": self.pl.mmp,
-                "atk": self.pl.atk,
-                "spd": self.pl.spd,
-            }
-            data_str = json.dumps(data)
-            if IS_WEB:
-                window.localStorage.setItem("pyxel-tiny-drpg", data_str)
-            else:
-                with open(get_data_file(), "w", encoding="utf_8") as f:
-                    f.write(data_str)
-        except Exception:
-            pass
+    # # ニューゲーム
+    # def new_game(self):
+    #     self.pl = Actor("あなた", 30, 6, 12, 12)
+    #     self.go_start_location()
+    #     self.gold = 0
+    #     self.keys = 0  # カギの数
+    #     self.flags = []  # フラグ（宝箱、扉などの判定用）
+    #     self.enc = 0  # エンカウント
+    #     self.frames = 0
 
-    # メッセージ
-    def message(self, msg):
-        Window.open("msg", 0, 10, 16, 16, msg)
-        self.wait = True
-
-    # BGM
-    def play_bgm(self, bgm):
-        if bgm != self.bgm:
-            px.playm(bgm, loop=True)
-            self.bgm = bgm
 
     ### 汎用関数 ####
 
@@ -625,10 +296,10 @@ class App:
         self.scene = "gameover"
 
     # スタート位置にもどる
-    def go_start_location(self):
-        self.scene = "field"
-        (self.x, self.y, self.z) = (8, 21, 0)
-        self.play_bgm(2)
+    # def go_start_location(self):
+    #     self.scene = "field"
+    #     (self.x, self.y, self.z) = (8, 21, 0)
+    #     self.play_bgm(2)
 
     # お金入手
     def add_gold(self, gold):
@@ -678,109 +349,14 @@ class App:
     def field_start(self):
         Window.close()
         self.scene = "field"
-        self.field_bgm()
+        # self.field_bgm()
         self.moving = False
         (self.dx, self.dy, self.spd) = (0, 0, 4)
 
     # フィールドBGM
-    def field_bgm(self):
-        self.play_bgm(1 if self.z > 0 else 2)
+    # def field_bgm(self):
+    #    self.play_bgm(1 if self.z > 0 else 2)
 
-    # 移動（１ステップ）開始
-    def move_start(self):
-        # 移動先のイベントを取得
-        evt = self.event
-        if not evt or evt in (">", "<"):  # 階段
-            self.dx *= self.spd
-            self.dy *= self.spd
-            self.moving = True
-            Window.close()  # ウィンドウが表示されていれば閉じる
-            return
-        self.dx, self.dy = (0, 0)
-        if evt == "@":  # 泉
-            px.play(3, 32)
-            self.message(["かいふくの いずみだ", "HP MP かいふく！"])
-            self.pl.hp = self.pl.mhp
-            self.pl.mp = self.pl.mmp
-        if evt in self.obstacles:
-            ob = self.obstacles[evt]
-            # 扉
-            if ob.kind == 0:
-                if self.keys:
-                    px.play(3, 33)
-                    self.message(["カギを あけた"])
-                    self.flags.append(evt)
-                    self.keys -= 1
-                    self.wait = True
-                else:
-                    self.message(["カギを もっていない"])
-            # 宝箱
-            elif ob.kind == 1:
-                t = ["たからばこだ！"]
-                if ob.val:
-                    t.append(f"{ob.val}G てにいれた")
-                    self.add_gold(ob.val)
-                else:
-                    t.append(f"カギを てにいれた")
-                    self.keys += 1
-                self.message(t)
-                self.flags.append(evt)
-                px.play(3, 35)
-            # NPC
-            if evt == "0-1" and "4-3" in self.flags:
-                self.message(["ぜひ Pyxelを", "マスターしてくれ"])
-            elif evt == "0-3":
-                self.message(["パワーアップするかい？", " HP MP ちから はやさ"])
-                self.cur = Cursor("shop", [1, 4, 7, 11], 14, -1)
-                self.shop_show()
-            elif evt == "1-2" and not "sp1" in self.flags:
-                self.message(["リターンの じゅもんを", "さずけよう"])
-                self.flags.append("sp1")
-            elif evt == "2-5" and not "sp2" in self.flags:
-                self.message(["じゅんびは よいか？", " はい  いいえ"])
-                self.cur = Cursor("boss1", [1, 5], 14, 1)
-            elif evt == "3-1" and not "sp3" in self.flags:
-                self.message(["おれと たたかうのか？", " はい  いいえ"])
-                self.cur = Cursor("boss2", [1, 5], 14, 1)
-            elif evt == "4-3":
-                self.message(["この ひほうが ほしいか？", " はい  いいえ"])
-                self.cur = Cursor("boss3", [1, 5], 14, 1)
-            # 会話のみ
-            elif evt in self.talks:
-                self.message(self.talks[evt])
-
-    # 移動（１ステップ）終了
-    def move_end(self):
-        self.y += self.dy // 16
-        self.x += self.dx // 16
-        self.dy = 0
-        self.dx = 0
-        self.moving = False
-        if self.event in ("<", ">"):  # 階段
-            self.z += 1 if self.event == ">" else -1
-            # エンディング判定
-            if self.z == 0 and "4-3" in self.flags and not "end" in self.flags:
-                s = self.frames // 30
-                m = s // 60
-                s %= 60
-                self.message(["ゲームクリア！", f"タイム：{m}ふん{s}びょう"])
-                self.flags.append("end")
-            else:
-                self.message([f"ちか{self.z+1}かい"])
-            self.field_bgm()
-            px.play(3, 34)
-            self.wait = True
-            return
-        if (self.x + self.y) % 2 == 0:
-            self.pl.hp = min(self.pl.hp + 1, self.pl.mhp)
-        # 地下1階、ひほう取得〜エンディングは敵がでない
-        if self.z == 0 or ("4-3" in self.flags and not "end" in self.flags):
-            return
-        self.enc += 1
-        if self.enc > 12 and px.rndi(0, 7) == 0:
-            self.enc = 0
-            ms_id = self.z - (1 if px.rndi(0, 3) < 3 else 0)
-            self.battle_start(ms_id)
 
     # ショップ用ウィンドウ生成
     def shop_show(self):
