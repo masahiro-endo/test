@@ -2,13 +2,13 @@ import pyxel
 from enum import Enum, auto
 from basestate import *
 from UI import *
-from actor import *
+import appconfig as gbl
 
 
 
 
 
-class ActorState():
+class ActorStates():
     def __init__(self):
         self.context = ActorStateContext(self, STATE.Idle)
 
@@ -18,11 +18,11 @@ class ActorState():
     def draw(self):
         self.context.draw()
 
-    def Title(self):
+    def Idle(self):
         self.context.changeState(STATE.Idle)
 
-    def Main(self):
-        self.context.changeState(STATE.Moving)
+    def Move(self):
+        self.context.changeState(STATE.Move)
 
     def Battle(self):
         self.context.changeState(STATE.Battle)
@@ -40,47 +40,47 @@ class STATE(Enum):
 
 class ActorStateContext():
     
-    def __init__(self, scene, initState):
-        self.state = initState
-        self.scene = scene
+    def __init__(self, parent, initState):
+        self.parent = parent
         self.table = {
             STATE.Idle: ActorState_Idle(self),
             STATE.Move: ActorState_Move(self),
             STATE.Battle: ActorState_Battle(self),
         }
-        self.currentScene = None
-        self.changeState(STATE.Idle)
+        self.currentState = None
+        self.changeState(initState)
 
     def update(self):
-        self.currentScene.update()
+        self.currentState.update()
 
     def draw(self):
-        self.currentScene.draw()
+        self.currentState.draw()
 
     def changeState(self, nextState):
         tbl = self.table[nextState]
-        if (self.currentScene != None): 
-            self.currentScene.exit()
+        if (self.currentState != None): 
+            self.currentState.exit()
 
-        self.currentScene = tbl
-        self.currentScene.enter()
+        self.currentState = tbl
+        self.currentState.enter()
 
 
 
 class ActorState_Idle(BaseState):
     def __init__(self, parent):
         self.state = STATE.Idle
-        self.context = parent
+        self.actor = parent.parent
 
     def update(self):
         btn = get_btn_state()
-        pt = get_character().party
+        pt = gbl.get_party()
 
         pt.dy = btn["d"] - btn["u"]
-        pt.dx = btn["r"] - btn["l"] if not self.dy else 0
+        pt.dx = btn["r"] - btn["l"] if not pt.dy else 0
         if pt.dy or pt.dx:
-            pt.move_start()
-            self.scene.Move()
+            mp = gbl.get_map()
+            mp.move_start()
+            self.actor.Move()
 
         elif btn["a"]:
             Window.close()
@@ -92,34 +92,34 @@ class ActorState_Idle(BaseState):
 class ActorState_Move(BaseState):
     def __init__(self, parent):
         self.state = STATE.Move
-        self.scene = parent
+        self.actor = parent.parent
 
     def update(self):
-        btn = get_btn_state()
-        pt = get_character().party
+        pt = gbl.get_party()
 
         pt.dy += pt.spd * ((pt.dy > 0) - (pt.dy < 0))
         pt.dx += pt.spd * ((pt.dx > 0) - (pt.dx < 0))
         # 移動終了
         if (pt.dy % 16, pt.dx % 16) == (0, 0):
-            self.scene.Idle()
+            self.actor.Idle()
+            mp = gbl.get_map()
+            mp.move_end()
 
 
     def draw(self):
-        pyxel.text(75, 0, "now playing...", 14)
+        pass
 
 
 class ActorState_Battle(BaseState):
     def __init__(self, parent):
         self.state = STATE.Battle
-        self.scene = parent
+        self.actor = parent.parent
 
     def update(self):
-        if pyxel.btnp(pyxel.KEY_SPACE):
-            self.scene.End()
+        pass
 
     def draw(self):
-        pyxel.text(75, 0, "now playing...", 14)
+        pass
 
 
 

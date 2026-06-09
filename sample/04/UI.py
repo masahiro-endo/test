@@ -3,7 +3,7 @@ from typing import overload
 import pyxel as px
 import copy
 from enum import Enum, auto
-import appconfig
+import appconfig as gbl
 
 
 
@@ -61,6 +61,10 @@ class Window:
         for key in windows_copy:
             del cls.all[key]
         return
+
+    @classmethod
+    def message(cls, msg):
+        Window.open("msg", 0, 10, 16, 16, msg)
 
 
 
@@ -121,7 +125,7 @@ def zen(val):
 # テキスト描画
 def draw_text(x, y, t):
     # global BDF
-    config = appconfig.get_settings()
+    config = gbl.get_settings()
     px.text(x * 8, y * 8 + 4, zen(t), 7, config.BDF)
 
 
@@ -155,15 +159,15 @@ def pad(val, length, fill=" "):
 
 
 # 起動画面ウィンドウ生成
-def welcome_show():
-    message_window([" New Cont Exit", " (Zキー or Aボタン)"])
+# def welcome_show():
+#     message_window([" New Cont Exit", " (Zキー or Aボタン)"])
     
-    self.cur = Cursor("welcome", [1, 5, 10], 12)
-    # すでにデータがある場合、カーソル位置をContにあわせる
-    # if self.load_data():
-    #     self.cur.pos = 1
-    # self.scene = "welcome"
-    # self.play_bgm(1)
+#     self.cur = Cursor("welcome", [1, 5, 10], 12)
+#     # すでにデータがある場合、カーソル位置をContにあわせる
+#     # if self.load_data():
+#     #     self.cur.pos = 1
+#     # self.scene = "welcome"
+#     # self.play_bgm(1)
 
 
 # メッセージ

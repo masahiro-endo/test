@@ -11,6 +11,7 @@ class Globals:
             # 循環参照防止のため、この時点では生成しない
             cls._instance.BDF = None
             cls._instance.screen = None
+            cls._instance.map = None
             cls._instance.party = None
             cls._instance.cursor = None
         return cls._instance
@@ -19,6 +20,8 @@ def get_settings():
     return Globals()
 def get_screen():
     return Globals().screen
+def get_map():
+    return Globals().map
 def get_party():
     return Globals().party
 

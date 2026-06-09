@@ -3,7 +3,8 @@ from enum import Enum, auto
 from basestate import *
 from UI import *
 from actor import *
-import appconfig
+import appconfig as gbl
+from mapfield import *
 
 
 
@@ -46,9 +47,8 @@ class STATE(Enum):
 
 class SceneStateContext():
     
-    def __init__(self, scene, initState):
-        self.state = initState
-        self.scene = scene
+    def __init__(self, parent, initState):
+        self.parent = parent
         self.table = {
             STATE.Title: SceneState_Title(self),
             STATE.Main: SceneState_Main(self),
@@ -56,7 +56,7 @@ class SceneStateContext():
             STATE.End: SceneState_End(self),
         }
         self.currentScene = None
-        self.changeState(STATE.Title)
+        self.changeState(initState)
 
     def update(self):
         self.currentScene.update()
@@ -79,7 +79,7 @@ class SceneStateContext():
 class SceneState_Title(BaseState):
     def __init__(self, parent):
         self.state = STATE.Title
-        self.context = parent
+        self.scene = parent.parent
 
         message_window([" New Cont Exit", " (Zキー or Aボタン)"])
         self.cur = Cursor("welcome", [1, 5, 10], 12)
@@ -88,9 +88,10 @@ class SceneState_Title(BaseState):
         ret = self.cur.update()
 
         if ret == 0: # New
-            pt = appconfig.get_party()
-            pt = Party()
-            self.context.scene.Main()
+            config = gbl.get_settings()
+            config.map = Map_Field()
+            config.party = Party()
+            self.scene.Main()
         elif ret == 1:  #（Continue)の場合、すでにセーブデータをロードしているので何もしない
             pass
         elif ret == 2: # Exit
@@ -115,39 +116,23 @@ class SceneState_Main(BaseState):
         self.state = STATE.Main
         self.scene = parent
 
-        (self.x, self.y, self.z) = (8, 21, 0)
+        self.map = Map_Field()
 
     def update(self):
-        get_screen().party.update()
+        self.map.update()
 
     def draw(self):
-            pt = get_screen().party
+        self.map.draw()
 
-            x, y = (self.x * 16 + pt.dx, self.y * 16 + pt.dy)
-            px.bltm(8, 0, self.z, x - 48, y - 48, 112, 112)
-            # 障害物（NPC含む）
-            for key in get_resource().obstacles:
-                if not key in pt.flags:
-                    ob = get_resource().obstacles[key]
-                    ob.draw(x, y, self.z)
-            # マスク
-            px.blt(0, -8, 0, 64, 0, 64, 64, 1)
-            px.blt(64, -8, 0, 64, 0, -64, 64, 1)
-            px.blt(0, 56, 0, 64, 0, 64, -64, 1)
-            px.blt(64, 56, 0, 64, 0, -64, -64, 1)
-            # 主人公
-            (u, v) = ((px.frame_count % 30) // 15 * 16, 2 * 16)
-            px.blt(56, 48, 0, u, v, 16, 16, 1)
-            # ステータス表示
-            px.rect(0, 112, 128, 16, 0)
-            t = f"HP{pad(pt.pl.hp,3)} MP{pad(pt.pl.mp,2)} {pad(pt.gold,4)}G"
-            draw_text(0, 14, t)
+        for key in Window.all:
+            Window.all[key].draw()
+            
 
 
 class SceneState_Battle(BaseState):
     def __init__(self, parent):
         self.state = STATE.Main
-        self.scene = parent
+        self.scene = parent.parent
 
     def update(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
@@ -160,7 +145,7 @@ class SceneState_Battle(BaseState):
 class SceneState_End(BaseState):
     def __init__(self, parent):
         self.state = STATE.End
-        self.scene = parent
+        self.scene = parent.parent
 
     def update(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
