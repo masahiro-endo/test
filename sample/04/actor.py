@@ -10,10 +10,11 @@ from actorstate import *
 
 
 # 呪文インデックス定数
-SPELL_FIRE = 0
-SPELL_RETURN = 1
-SPELL_HEAL = 2
-SPELL_BURST = 3
+class SPELL(IntEnum):
+    FIRE = 0
+    CLOSE = auto()
+    HEAL = auto()
+    BURST = auto()
 
 
 
@@ -56,33 +57,165 @@ class Actor:
 class Party:
     def __init__(self):
         self.pl = Actor("あなた", 30, 6, 12, 12)
-        # self.go_start_location()
         self.gold = 0
         self.keys = 0  # カギの数
         self.flags = []  # フラグ（宝箱、扉などの判定用）
         self.enc = 0  # エンカウント
         self.frames = 0
 
-        self.state = ActorStates()
+        self.state = ActorStates(self)
+        (self.x, self.y, self.z) = (8, 21, 0)
         (self.dx, self.dy, self.spd) = (0, 0, 4)
 
     def update(self):
         self.state.update()
+    
     def draw(self):
         self.state.draw()
 
-    # メニュー用ウィンドウ生成
-    def menu_show(self):
-        pl = self.pl
-        t = [
-            f"HP {pad(pl.hp,3)}/{pad(pl.mhp,3)}",
-            f"MP  {pad(pl.mp,2)}/ {pad(pl.mmp,2)}",
-            f"ちから {pad(pl.atk,2)}  はやさ {pad(pl.spd,2)}",
+    def status(self):
+        return [
+            f"HP {pad(self.pl.hp,3)}/{pad(self.pl.mhp,3)}",
+            f"MP  {pad(self.pl.mp,2)}/ {pad(self.pl.mmp,2)}",
+            f"ちから {pad(self.pl.atk,2)}  はやさ {pad(self.pl.spd,2)}",
             f" {pad(self.gold,4)}G  カギ {pad(self.keys,2)}こ",
         ]
-        Window.open("menu_stat", 0, 0, 16, 10, t)
-        Window.message([f"いま ちか{self.z+1}かいに います", " セーブ じゅもん リセット"])
-        self.cur = Cursor("menu", [1, 5, 10], 14, -1)
+
+
+    @property
+    def event(self):
+        x = self.x + self.dx
+        y = self.y + self.dy
+        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
+        if tm == (0, 2):
+            return "-"  # 壁
+        elif tm == (2, 2):
+            return "@"  # 泉
+        elif tm == (4, 0):
+            return "<"  # 上り階段
+        elif tm == (6, 0):
+            return ">"  # 下り階段
+        for key in get_resource().obstacles:
+            ob = get_resource().obstacles[key]
+            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
+                return key
+        return ""
+
+    # 現在使える呪文
+    def available_spells(self, on_battle=False):
+        ret = [SPELL.FIRE]  # ファイアは最初から
+        if not on_battle and "sp1" in self.flags:
+            ret.append(SPELL.CLOSE)
+        if "sp2" in self.flags:
+            ret.append(SPELL.HEAL)
+        if "sp3" in self.flags:
+            ret.append(SPELL.BURST)
+        return ret
+
+    def use_heal(self, mp):
+        hp = min(self.pl.hp + mp * 5, self.pl.mhp)
+        ret = hp - self.pl.hp
+        self.pl.hp += ret
+        return ret
+
+    # 移動（１ステップ）開始
+    def move_start(self):
+        # 移動先のイベントを取得
+        evt = self.event
+
+        if not evt or evt in (">", "<"):  # 階段
+            self.dx *= self.spd
+            self.dy *= self.spd
+            self.moving = True
+            Window.close()  # ウィンドウが表示されていれば閉じる
+            return
+        self.dx, self.dy = (0, 0)
+        if evt == "@":  # 泉
+            px.play(3, 32)
+            Window.message(["かいふくの いずみだ", "HP MP かいふく！"])
+            self.pl.hp = self.pl.mhp
+            self.pl.mp = self.pl.mmp
+        if evt in get_resource().obstacles:
+            ob = get_resource().obstacles[evt]
+            # 扉
+            if ob.kind == 0:
+                if self.keys:
+                    px.play(3, 33)
+                    Window.message(["カギを あけた"])
+                    self.flags.append(evt)
+                    self.keys -= 1
+                    self.wait = True
+                else:
+                    Window.message(["カギを もっていない"])
+            # 宝箱
+            elif ob.kind == 1:
+                t = ["たからばこだ！"]
+                if ob.val:
+                    t.append(f"{ob.val}G てにいれた")
+                    self.add_gold(ob.val)
+                else:
+                    t.append(f"カギを てにいれた")
+                    self.keys += 1
+                Window.message(t)
+                self.flags.append(evt)
+                px.play(3, 35)
+            # NPC
+            if evt == "0-1" and "4-3" in self.flags:
+                Window.message(["ぜひ Pyxelを", "マスターしてくれ"])
+            elif evt == "0-3":
+                Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
+                self.cur = Cursor("shop", [1, 4, 7, 11], 14, -1)
+                Window.shop_show()
+            elif evt == "1-2" and not "sp1" in self.flags:
+                Window.message(["リターンの じゅもんを", "さずけよう"])
+                self.flags.append("sp1")
+            elif evt == "2-5" and not "sp2" in self.flags:
+                Window.message(["じゅんびは よいか？", " はい  いいえ"])
+                self.cur = Cursor("boss1", [1, 5], 14, 1)
+            elif evt == "3-1" and not "sp3" in self.flags:
+                Window.message(["おれと たたかうのか？", " はい  いいえ"])
+                self.cur = Cursor("boss2", [1, 5], 14, 1)
+            elif evt == "4-3":
+                Window.message(["この ひほうが ほしいか？", " はい  いいえ"])
+                self.cur = Cursor("boss3", [1, 5], 14, 1)
+            # 会話のみ
+            elif evt in get_resource().talks:
+                Window.message(get_resource().talks[evt])
+
+    # 移動（１ステップ）終了
+    def move_end(self):
+        self.y += self.dy // 16 
+        self.x += self.dx // 16
+        self.dy = 0
+        self.dx = 0
+        self.moving = False
+        if self.event in ("<", ">"):  # 階段
+            self.z += 1 if self.event == ">" else -1
+            # エンディング判定
+            if self.z == 0 and "4-3" in self.flags and not "end" in self.flags:
+                s = self.frames // 30
+                m = s // 60
+                s %= 60
+                Window.message(["ゲームクリア！", f"タイム：{m}ふん{s}びょう"])
+                self.flags.append("end")
+            else:
+                Window.message([f"ちか{self.z+1}かい"])
+            # self.field_bgm()
+            # px.play(3, 34)
+            self.wait = True
+            return
+        if (self.x + self.y) % 2 == 0:
+            self.pl.hp = min(self.pl.hp + 1, self.pl.mhp)
+        # 地下1階、ひほう取得〜エンディングは敵がでない
+        if self.z == 0 or ("4-3" in self.flags and not "end" in self.flags):
+            return
+        self.enc += 1
+        if self.enc > 12 and px.rndi(0, 7) == 0:
+            self.enc = 0
+            ms_id = self.z - (1 if px.rndi(0, 3) < 3 else 0)
+            self.battle_start(ms_id)
+
+
 
 
 

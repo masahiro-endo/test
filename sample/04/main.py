@@ -24,14 +24,18 @@ class App:
     def __init__(self):
         # global BDF
         config = gbl.get_settings()
-        config.screen = Screen()
-        self.screen = gbl.get_screen()
 
         px.init(
             128, 128, title="Pyxel Tiny DRPG", quit_key=px.KEY_NONE, display_scale=2
         )
         px.load("assets.pyxres")
         config.BDF = px.Font("k8x12S.bdf")  # フォントファイル
+        config.party = Party()
+
+        config.screen = SceneStates()
+        self.screen = gbl.get_screen()
+        self.screen.Main()
+
         self.cur = None
         self.wait = False
         self.bgm = None
@@ -78,62 +82,65 @@ class App:
                 pass
             # メニューの選択肢
             elif cur.key == "menu":
-                self.cur = None
-                if ret == 0:  # セーブ
-                    self.save_data()
-                elif ret == 1:  # じゅもん
-                    self.menu_spells()
-                    return
-                elif ret == 2:
-                    Window.close()
-                    self.welcome_show()
-                    return
-                self.field_start()
-                if ret == 0:
-                    self.message(["セーブしました"])
+                # self.cur = None
+                # if ret == 0:  # セーブ
+                #     self.save_data()
+                # elif ret == 1:  # じゅもん
+                #     self.menu_spells()
+                #     return
+                # elif ret == 2:
+                #     Window.close()
+                #     self.welcome_show()
+                #     return
+                # self.field_start()
+                # if ret == 0:
+                #     self.message(["セーブしました"])
+                pass
             # メニュー呪文の選択肢
             elif cur.key == "spells":
-                if ret >= 0:
-                    spl_id = self.available_spells()[ret]
-                    spl = self.spells[spl_id]
-                    mp = spl.get_mp(self.pl)
-                    if mp and mp <= self.pl.mp and spl.on_menu:
-                        self.pl.mp -= mp
-                        if spl_id == SPELL_RETURN:
-                            Window.close()
-                            self.cur = None
-                            self.go_start_location()
-                            px.play(3, 36)
-                            return
-                        elif spl_id == SPELL_HEAL:
-                            self.use_heal(mp)
-                            self.menu_spells()
-                else:
-                    Window.close()
-                    self.menu_show()
-                    self.cur.pos = 1
+                # if ret >= 0:
+                #     spl_id = self.available_spells()[ret]
+                #     spl = self.spells[spl_id]
+                #     mp = spl.get_mp(self.pl)
+                #     if mp and mp <= self.pl.mp and spl.on_menu:
+                #         self.pl.mp -= mp
+                #         if spl_id == SPELL_RETURN:
+                #             Window.close()
+                #             self.cur = None
+                #             self.go_start_location()
+                #             px.play(3, 36)
+                #             return
+                #         elif spl_id == SPELL_HEAL:
+                #             self.use_heal(mp)
+                #             self.menu_spells()
+                # else:
+                #     Window.close()
+                #     self.menu_show()
+                #     self.cur.pos = 1
+                pass
             # ショップの選択肢
             elif cur.key == "shop":
-                if ret < 0:
-                    Window.close()
-                    self.cur = None
-                else:
-                    _, _, cost = self.shop_get_item(ret)
-                    if cost == 0 or self.gold < cost:
-                        return
-                    self.gold -= cost
-                    if ret == 0:
-                        self.pl.mhp += 5
-                        self.pl.hp = self.pl.mhp
-                    elif ret == 1:
-                        self.pl.mmp += 2
-                        self.pl.mp = self.pl.mmp
-                    elif ret == 2:
-                        self.pl.atk += 2
-                    elif ret == 3:
-                        self.pl.spd += 2
-                    px.play(3, 32)
-                    self.shop_show()
+                # if ret < 0:
+                #     Window.close()
+                #     self.cur = None
+                # else:
+                #     _, _, cost = self.shop_get_item(ret)
+                #     if cost == 0 or self.gold < cost:
+                #         return
+                #     self.gold -= cost
+                #     if ret == 0:
+                #         self.pl.mhp += 5
+                #         self.pl.hp = self.pl.mhp
+                #     elif ret == 1:
+                #         self.pl.mmp += 2
+                #         self.pl.mp = self.pl.mmp
+                #     elif ret == 2:
+                #         self.pl.atk += 2
+                #     elif ret == 3:
+                #         self.pl.spd += 2
+                #     px.play(3, 32)
+                #     self.shop_show()
+                pass
             # イベント（ボス戦1）の選択肢
             elif cur.key == "boss1":
                 self.cur = None
@@ -314,16 +321,16 @@ class App:
         self.pl.hp += ret
         return ret
 
-    # 現在使える呪文
-    def available_spells(self, on_battle=False):
-        ret = [SPELL_FIRE]  # ファイアは最初から
-        if not on_battle and "sp1" in self.flags:
-            ret.append(SPELL_RETURN)
-        if "sp2" in self.flags:
-            ret.append(SPELL_HEAL)
-        if "sp3" in self.flags:
-            ret.append(SPELL_BURST)
-        return ret
+    # # 現在使える呪文
+    # def available_spells(self, on_battle=False):
+    #     ret = [SPELL_FIRE]  # ファイアは最初から
+    #     if not on_battle and "sp1" in self.flags:
+    #         ret.append(SPELL_RETURN)
+    #     if "sp2" in self.flags:
+    #         ret.append(SPELL_HEAL)
+    #     if "sp3" in self.flags:
+    #         ret.append(SPELL_BURST)
+    #     return ret
 
     ### フィールド関連 ###
 
@@ -400,37 +407,37 @@ class App:
 
     ### メニュー関連 ###
 
-    # メニュー用ウィンドウ生成
-    def menu_show(self):
-        pl = self.pl
-        t = [
-            f"HP {pad(pl.hp,3)}/{pad(pl.mhp,3)}",
-            f"MP  {pad(pl.mp,2)}/ {pad(pl.mmp,2)}",
-            f"ちから {pad(pl.atk,2)}  はやさ {pad(pl.spd,2)}",
-            f" {pad(self.gold,4)}G  カギ {pad(self.keys,2)}こ",
-        ]
-        Window.open("menu_stat", 0, 0, 16, 10, t)
-        self.message([f"いま ちか{self.z+1}かいに います", " セーブ じゅもん リセット"])
-        self.cur = Cursor("menu", [1, 5, 10], 14, -1)
+    # # メニュー用ウィンドウ生成
+    # def menu_show(self):
+    #     pl = self.pl
+    #     t = [
+    #         f"HP {pad(pl.hp,3)}/{pad(pl.mhp,3)}",
+    #         f"MP  {pad(pl.mp,2)}/ {pad(pl.mmp,2)}",
+    #         f"ちから {pad(pl.atk,2)}  はやさ {pad(pl.spd,2)}",
+    #         f" {pad(self.gold,4)}G  カギ {pad(self.keys,2)}こ",
+    #     ]
+    #     Window.open("menu_stat", 0, 0, 16, 10, t)
+    #     Window.message([f"いま ちか{self.z+1}かいに います", " セーブ じゅもん リセット"])
+    #     self.cur = Cursor("menu", [1, 5, 10], 14, -1)
 
-    # メニュー用呪文リスト
-    def menu_spells(self):
-        spells = self.available_spells()
-        pos = self.cur.pos if self.cur else 0
-        spl = self.spells[spells[pos]]
-        t1 = f"げんざいのMP {self.pl.mp}" if spl.on_menu else "ここでは つかえない"
-        mp = spl.get_mp(self.pl)
-        t2 = [f"{spacing(spl.name,4)}    MP {pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
-        Window.open("menu_spells", 0, 0, 16, 10, t2)
-        t3 = " "
-        list_x = []
-        for spl_id in spells:
-            list_x.append(len(t3))
-            # 文字数省略のため最初の２文字だけ表示
-            t3 += self.spells[spl_id].name[0:2] + " "
-        self.message(["なにを つかいますか？", t3])
-        if not self.cur:
-            self.cur = Cursor("spells", list_x, 14, -1)
+    # # メニュー用呪文リスト
+    # def menu_spells(self):
+    #     spells = self.available_spells()
+    #     pos = self.cur.pos if self.cur else 0
+    #     spl = self.spells[spells[pos]]
+    #     t1 = f"げんざいのMP {self.pl.mp}" if spl.on_menu else "ここでは つかえない"
+    #     mp = spl.get_mp(self.pl)
+    #     t2 = [f"{spacing(spl.name,4)}    MP {pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
+    #     Window.open("menu_spells", 0, 0, 16, 10, t2)
+    #     t3 = " "
+    #     list_x = []
+    #     for spl_id in spells:
+    #         list_x.append(len(t3))
+    #         # 文字数省略のため最初の２文字だけ表示
+    #         t3 += self.spells[spl_id].name[0:2] + " "
+    #     self.message(["なにを つかいますか？", t3])
+    #     if not self.cur:
+    #         self.cur = Cursor("spells", list_x, 14, -1)
 
     ### バトル関連 ###
 

@@ -1,0 +1,63 @@
+{
+  "start": {
+    "speaker": "Hero",
+    "portrait": 8,
+    "text": [
+      "This forest feels uneasy...",
+      "What should I do?"
+    ],
+    "choices": [
+      ["Look around", "look"],
+      ["Call out", "call"],
+      ["Leave", null]
+    ]
+  },
+
+  "look": {
+    "speaker": "Hero",
+    "portrait": 8,
+    "text": ["I should check my surroundings carefully."],
+    "next": "encounter"
+  },
+
+  "call": {
+    "speaker": "Hero",
+    "portrait": 8,
+    "text": ["Hello?", "Is anyone here?"],
+    "next": "echo"
+  },
+
+  "echo": {
+    "speaker": "???",
+    "portrait": 2,
+    "text": ["...Hello..."],
+    "choices": [
+      ["Approach voice", "approach"],
+      ["Run away", null]
+    ]
+  },
+
+  "approach": {
+    "speaker": "Hero",
+    "portrait": 8,
+    "text": ["I should see who that is..."],
+    "next": "encounter"
+  },
+
+  "encounter": {
+    "speaker": "Stranger",
+    "portrait": 3,
+    "text": ["You finally arrived.", "I've been waiting for you."],
+    "choices": [
+      ["Who are you?", "who"],
+      ["I'm leaving!", null]
+    ]
+  },
+
+  "who": {
+    "speaker": "Stranger",
+    "portrait": 3,
+    "text": ["You will learn that soon enough."],
+    "next": null
+  }
+}

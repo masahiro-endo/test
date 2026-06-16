@@ -4,14 +4,14 @@ from basestate import *
 from UI import *
 from actor import *
 import appconfig as gbl
-from mapfield import *
+from mapstate import *
 
 
 
 
 
 
-class Screen():
+class SceneStates():
     def __init__(self):
         self.context = SceneStateContext(self, STATE.Title)
 
@@ -81,20 +81,17 @@ class SceneState_Title(BaseState):
         self.state = STATE.Title
         self.scene = parent.parent
 
-        message_window([" New Cont Exit", " (Zキー or Aボタン)"])
+        Window.message([" New Cont Exit", " (push [Z] Key)"])
         self.cur = Cursor("welcome", [1, 5, 10], 12)
 
     def update(self):
         ret = self.cur.update()
 
-        if ret == 0: # New
-            config = gbl.get_settings()
-            config.map = Map_Field()
-            config.party = Party()
+        if ret == TITLE_SEL.New:
             self.scene.Main()
-        elif ret == 1:  #（Continue)の場合、すでにセーブデータをロードしているので何もしない
+        elif ret == TITLE_SEL.Continue:  # すでにセーブデータをロードしているので何もしない
             pass
-        elif ret == 2: # Exit
+        elif ret == TITLE_SEL.Exit:
             px.quit()
 
 
@@ -116,16 +113,14 @@ class SceneState_Main(BaseState):
         self.state = STATE.Main
         self.scene = parent
 
-        self.map = Map_Field()
+        self.currentMap = MapStates(self)
 
     def update(self):
-        self.map.update()
+        self.currentMap.update()
 
     def draw(self):
-        self.map.draw()
+        self.currentMap.draw()
 
-        for key in Window.all:
-            Window.all[key].draw()
             
 
 

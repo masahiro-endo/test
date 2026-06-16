@@ -2,13 +2,16 @@ from typing import overload
 
 import pyxel as px
 import copy
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 import appconfig as gbl
 
 
 
 
-
+class WINDOW_KEY(Enum):
+    MSG = "msg"
+    MENU = "menu_stat"
+    MENU_SPELLS = "menu_spells"
 
 
 # ウィンドウオブジェクト
@@ -52,6 +55,7 @@ class Window:
         if key in cls.all:
             cls.all[key].texts = texts
         else:
+            # 複製を dict 連想配列 all に保存
             cls.all[key] = cls(key, x1, y1, x2, y2, texts)
         return cls.all[key]
 
@@ -63,11 +67,41 @@ class Window:
         return
 
     @classmethod
+    def pop(cls, key):
+        del cls.all[key]
+
+    @classmethod
     def message(cls, msg):
-        Window.open("msg", 0, 10, 16, 16, msg)
+        Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg)
 
 
 
+
+
+class TITLE_SEL(IntEnum):
+    New = 0
+    Continue = auto()
+    Exit = auto()
+
+class MENU_SEL(IntEnum):
+    Save = 0
+    Spells = auto()
+    Close = auto()
+
+
+
+
+class CURSOR_KEY(Enum):
+    WELCOME = "welcome"
+    MENU = "menu"
+    SPELLS = "spells"
+    SHOP = "shop"
+    BOSS1 = "boss1"
+    BOSS2 = "boss2"
+    BOSS3 = "boss3"
+    BATTLE_COMMAND = "bt_command"
+    BATTLE_SPELLS = "bt_spells"
+    
 
 # カーソル（選択肢の ▶︎）
 class Cursor:
@@ -171,7 +205,7 @@ def pad(val, length, fill=" "):
 
 
 # メッセージ
-def message_window(msg):
-    Window.open("msg", 0, 10, 16, 16, msg)
-    # self.wait = True
+# def message_window(msg):
+#     Window.open("msg", 0, 10, 16, 16, msg)
+#     # self.wait = True
 
