@@ -1,6 +1,6 @@
 import pyxel
 from enum import Enum, auto
-from basestate import *
+from module.basestate import *
 from UI import *
 import appconfig as gbl
 

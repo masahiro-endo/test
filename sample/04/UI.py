@@ -12,19 +12,24 @@ class WINDOW_KEY(Enum):
     MSG = "msg"
     MENU = "menu_stat"
     MENU_SPELLS = "menu_spells"
+    SHOP = "shop"
 
 
 # ウィンドウオブジェクト
 class Window:
     all = {}
 
-    def __init__(self, key, x1, y1, x2, y2, texts):
+    def __init__(self, key, x1, y1, x2, y2, texts, cur):
         self.key = key
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
         self.texts = texts
+        self.cursor = cur
+
+    def draw(self):
+        return self.cursor.draw()
 
     def draw(self):
         x1 = self.x1 * 8
@@ -49,14 +54,16 @@ class Window:
         for pos, text in enumerate(self.texts):
             if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
                 draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
+        if self.cursor:
+            self.cursor.draw()
 
     @classmethod
-    def open(cls, key, x1, y1, x2, y2, texts=[]):
+    def open(cls, key, x1, y1, x2, y2, texts=[], cur=None):
         if key in cls.all:
             cls.all[key].texts = texts
         else:
             # 複製を dict 連想配列 all に保存
-            cls.all[key] = cls(key, x1, y1, x2, y2, texts)
+            cls.all[key] = cls(key, x1, y1, x2, y2, texts, cur)
         return cls.all[key]
 
     @classmethod
@@ -71,8 +78,8 @@ class Window:
         del cls.all[key]
 
     @classmethod
-    def message(cls, msg):
-        Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg)
+    def message(cls, msg, cur=None):
+        Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg, cur)
 
 
 
@@ -88,6 +95,16 @@ class MENU_SEL(IntEnum):
     Spells = auto()
     Close = auto()
 
+class BATTLE_SEL(IntEnum):
+    Attack = 0
+    Spell = auto()
+    Run = auto()
+
+class SHOP_SEL(IntEnum):
+    HP = 0
+    MP = auto()
+    STR = auto()
+    AGI = auto()
 
 
 

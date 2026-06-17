@@ -1,6 +1,6 @@
 import pyxel
 from enum import Enum, auto
-from basestate import *
+from module.basestate import *
 from UI import *
 from actor import *
 import appconfig as gbl
@@ -9,7 +9,7 @@ import appconfig as gbl
 
 
 
-class MapStates():
+class MapStates(BaseContext):
     def __init__(self, parent):
         self.parent = parent
         self.table = {
@@ -18,73 +18,26 @@ class MapStates():
             STATE.Menu: MapState_Menu(self),
             STATE.Spell: MapState_Spell(self),
         }
-        self._stack = []
-        self.pushstate(STATE.Field)
+        self.changeState(STATE.Shop)
 
     def update(self):
-        curr = self.current()
-        if curr: 
-            curr.update()
+        self.currentState.update()
 
     def draw(self):
-        curr = self.current()
-        if curr: 
-            curr.draw()
+        self.currentState.draw()
 
     def Field(self):
-        for map in reversed(self._stack):
-            self.popstate()
-        self.pushstate(STATE.Field)
+        self.changeState(STATE.Field)
 
     def Menu(self):
-        self.pushstate(STATE.Menu)
+        self.changeState(STATE.Menu)
 
     def Spell(self):
-        self.pushstate(STATE.Spell)
+        self.changeState(STATE.Spell)
 
     def Shop(self):
-        self.pushstate(STATE.Shop)
+        self.changeState(STATE.Shop)
 
-    def pushstate(self, state):
-        tbl = self.table[state]
-        curr = self.current()
-        if curr: 
-            curr.exit()
-
-        self._stack.append(tbl)
-        curr = self.current()
-        if curr: 
-            curr.enter()
-
-    @overload
-    def popstate(self):
-        curr = self.current()
-        if curr: 
-            curr.exit()
-
-        self._stack.pop()
-        curr = self.current()
-        if curr: 
-            curr.enter()
-
-    @overload
-    def popstate(self, state):
-        curr = self.current()
-        if curr: 
-            curr.exit()
-
-        for map in reversed(self._stack):
-            if state == map.state:
-                self._stack.remove(map)
-
-        curr = self.current()
-        if curr: 
-            curr.enter()
-
-    def current(self):
-        if not self._stack:
-            return None
-        return self._stack[-1]
 
 
 
@@ -220,10 +173,8 @@ class MapState_Spell(BaseState):
         
 
     def draw(self):
-
         for key in Window.all:
             Window.all[key].draw()
-
         self.cur.draw()
 
 
@@ -232,17 +183,26 @@ class MapState_Shop(BaseState):
     def __init__(self, parent):
         self.state = STATE.Shop
         self.map = parent
+        self.cursor = None
+
+    def enter(self):
+        self.shop_show()
 
     # ショップ用ウィンドウ生成
     def shop_show(self):
-        t1, t2, cost = self.shop_get_item(self.cur.pos)
+        Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
+        self.cursor = Cursor(CURSOR_KEY.SHOP, [1, 4, 7, 11], 14, -1)
+
+        pt = gbl.get_party()
+        t1, t2, cost = self.shop_get_item(self.cursor.pos)
         if cost:
             t3 = f"{cost}Gで パワーアップ"
         else:
             t3 = "もう パワーアップできない"
-        t4 = "# おかねが たりません" if cost > self.gold else ""
-        t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {pad(self.gold,4)}G)"]
-        Window.open("shop", 0, 0, 16, 10, t)
+        t4 = "# おかねが たりません" if cost > pt.gold else ""
+        t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {pad(pt.gold,4)}G)"]
+        Window.open(WINDOW_KEY.SHOP, 0, 0, 16, 10, t)
+
 
     # ショップ用購入項目情報取得
     def shop_get_item(self, kind):
@@ -250,22 +210,22 @@ class MapState_Shop(BaseState):
 
         cost = 0
         t2 = "---"
-        if kind == 0:
+        if kind == SHOP_SEL.HP:
             t1 = f"HP {pad(pt.pl.mhp,3)}"
             if pt.pl.mhp < 255:
                 t2 = pad(pt.pl.mhp + 5, 3)
                 cost = pt.pl.mhp * 2
-        elif kind == 1:
+        elif kind == SHOP_SEL.MP:
             t1 = f"MP  {pad(pt.pl.mmp,2)}"
             if pt.pl.mmp < 98:
                 t2 = pad(pt.pl.mmp + 2, 3)
                 cost = pt.pl.mmp * 5
-        elif kind == 2:
+        elif kind == SHOP_SEL.STR:
             t1 = f"ちから {pad(pt.pl.atk,2)}"
             if pt.pl.atk < 98:
                 t2 = pad(pt.pl.atk + 2, 3)
                 cost = pt.pl.atk * 5
-        elif kind == 3:
+        elif kind == SHOP_SEL.AGI:
             t1 = f"はやさ {pad(pt.pl.spd,2)}"
             if pt.pl.spd < 98:
                 t2 = pad(pt.pl.spd + 2, 3)
@@ -273,7 +233,12 @@ class MapState_Shop(BaseState):
         return t1, t2, cost
 
     def update(self):
-        ret = self.cur.update()
+        if self.cursor is None:
+            return
+
+        ret = self.cursor.update()
+        if ret is None:
+            return
 
         if ret < 0:
             Window.close()
@@ -283,22 +248,21 @@ class MapState_Shop(BaseState):
             if cost == 0 or pt.gold < cost:
                 return
             pt.gold -= cost
-            if ret == 0:
+            if ret == SHOP_SEL.HP:
                 pt.pl.mhp += 5
                 pt.pl.hp = pt.pl.mhp
-            elif ret == 1:
+            elif ret == SHOP_SEL.MP:
                 pt.pl.mmp += 2
                 pt.pl.mp = self.pl.mmp
-            elif ret == 2:
+            elif ret == SHOP_SEL.STR:
                 pt.pl.atk += 2
-            elif ret == 3:
+            elif ret == SHOP_SEL.AGI:
                 pt.pl.spd += 2
             # px.play(3, 32)
             self.shop_show()
 
     def draw(self):
-        pyxel.text(75, 0, "now playing...", 14)
-
+        pass
 
 
 

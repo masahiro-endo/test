@@ -1,6 +1,6 @@
 import pyxel as px
 from UI import *
-from actorstate import *
+from module.actorstate import *
 
 
 
@@ -40,6 +40,8 @@ class Obstacle:
             px.blt(56 + ox, 48 + oy, 0, u * 16, v * 16, 16, 16, 1)
 
 
+
+
 # 戦闘用キャラクタ（自分とモンスター）
 class Actor:
     def __init__(self, name, hp, mp, atk, spd, resist=0, img=None, gold=0):
@@ -54,7 +56,8 @@ class Actor:
         self.img = img  # モンスターの場合の画像イメージ
         self.gold = gold  # 勝利時報酬
 
-class Party:
+
+class Model_Party:
     def __init__(self):
         self.pl = Actor("あなた", 30, 6, 12, 12)
         self.gold = 0
@@ -69,7 +72,7 @@ class Party:
 
     def update(self):
         self.state.update()
-    
+
     def draw(self):
         self.state.draw()
 
@@ -163,9 +166,10 @@ class Party:
             if evt == "0-1" and "4-3" in self.flags:
                 Window.message(["ぜひ Pyxelを", "マスターしてくれ"])
             elif evt == "0-3":
-                Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
-                self.cur = Cursor("shop", [1, 4, 7, 11], 14, -1)
-                Window.shop_show()
+                gbl.get_screen().currentMap.Shop()
+                # Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
+                # self.cur = Cursor("shop", [1, 4, 7, 11], 14, -1)
+                # Window.shop_show()
             elif evt == "1-2" and not "sp1" in self.flags:
                 Window.message(["リターンの じゅもんを", "さずけよう"])
                 self.flags.append("sp1")
@@ -215,7 +219,13 @@ class Party:
             ms_id = self.z - (1 if px.rndi(0, 3) < 3 else 0)
             self.battle_start(ms_id)
 
+    def add_gold(self, gold):
+        self.gold = min(self.gold + gold, 9999)
 
+    def game_over(self):
+        Window.close()
+        Window.message([f"{self.pl.name}は", "いしきを うしなった"])
+        # self.scene = "gameover"
 
 
 
