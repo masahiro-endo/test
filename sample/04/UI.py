@@ -13,23 +13,20 @@ class WINDOW_KEY(Enum):
     MENU = "menu_stat"
     MENU_SPELLS = "menu_spells"
     SHOP = "shop"
-
+    BATTLESTS = "bt_stat"
+    BATTLEMSG = "bt_msg"
 
 # ウィンドウオブジェクト
 class Window:
     all = {}
 
-    def __init__(self, key, x1, y1, x2, y2, texts, cur):
+    def __init__(self, key, x1, y1, x2, y2, texts):
         self.key = key
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
         self.texts = texts
-        self.cursor = cur
-
-    def draw(self):
-        return self.cursor.draw()
 
     def draw(self):
         x1 = self.x1 * 8
@@ -54,53 +51,63 @@ class Window:
         for pos, text in enumerate(self.texts):
             if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
                 draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
-        if self.cursor:
-            self.cursor.draw()
 
     @classmethod
-    def open(cls, key, x1, y1, x2, y2, texts=[], cur=None):
+    def open(cls, key, x1, y1, x2, y2, texts=[]):
         if key in cls.all:
             cls.all[key].texts = texts
         else:
             # 複製を dict 連想配列 all に保存
-            cls.all[key] = cls(key, x1, y1, x2, y2, texts, cur)
+            cls.all[key] = cls(key, x1, y1, x2, y2, texts)
         return cls.all[key]
 
     @classmethod
-    def close(cls):
+    def close(cls, disposeWith=None):
         windows_copy = copy.deepcopy(cls.all)
         for key in windows_copy:
             del cls.all[key]
+        disposeWith = None
         return
+
+    @classmethod
+    def clear(cls, disposeWith=None):
+        Window.close(disposeWith)
 
     @classmethod
     def pop(cls, key):
         del cls.all[key]
 
     @classmethod
-    def message(cls, msg, cur=None):
-        Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg, cur)
+    def message(cls, msg):
+        Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg)
 
 
 
 
 
 class TITLE_SEL(IntEnum):
+    Cancel = 12 # 先頭に戻る
     New = 0
     Continue = auto()
     Exit = auto()
 
 class MENU_SEL(IntEnum):
+    Cancel = -1
     Save = 0
     Spells = auto()
     Close = auto()
 
+class SPELL_SEL(IntEnum):
+    Cancel = -1
+
 class BATTLE_SEL(IntEnum):
+    Cancel = -1
     Attack = 0
     Spell = auto()
     Run = auto()
 
 class SHOP_SEL(IntEnum):
+    Cancel = -1
     HP = 0
     MP = auto()
     STR = auto()
@@ -119,6 +126,8 @@ class CURSOR_KEY(Enum):
     BATTLE_COMMAND = "bt_command"
     BATTLE_SPELLS = "bt_spells"
     
+
+
 
 # カーソル（選択肢の ▶︎）
 class Cursor:

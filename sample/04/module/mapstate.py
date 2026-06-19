@@ -15,10 +15,10 @@ class MapStates(BaseContext):
         self.table = {
             STATE.Field: MapState_Field(self),
             STATE.Shop: MapState_Shop(self),
-            STATE.Menu: MapState_Menu(self),
-            STATE.Spell: MapState_Spell(self),
+            STATE.FieldMenu: MapState_FieldMenu(self),
+            STATE.FieldSpell: MapState_FieldSpell(self),
         }
-        self.changeState(STATE.Shop)
+        self.changeState(STATE.Field)
 
     def update(self):
         self.currentState.update()
@@ -29,10 +29,10 @@ class MapStates(BaseContext):
     def Field(self):
         self.changeState(STATE.Field)
 
-    def Menu(self):
+    def FieldMenu(self):
         self.changeState(STATE.Menu)
 
-    def Spell(self):
+    def FieldSpell(self):
         self.changeState(STATE.Spell)
 
     def Shop(self):
@@ -44,8 +44,8 @@ class MapStates(BaseContext):
 class STATE(Enum):
     Field = auto()
     Shop = auto()
-    Menu = auto()
-    Spell = auto()
+    FieldMenu = auto()
+    FieldSpell = auto()
 
 
 
@@ -54,6 +54,7 @@ class MapState_Field(BaseState):
     def __init__(self, parent):
         self.state = STATE.Field
         self.map = parent
+        self.cursor = None
 
     def update(self):
         gbl.get_party().update()
@@ -83,24 +84,25 @@ class MapState_Field(BaseState):
 
 
 
-class MapState_Menu(BaseState):
+class MapState_FieldMenu(BaseState):
     def __init__(self, parent):
-        self.state = STATE.Menu
+        self.state = STATE.FieldMenu
         self.map = parent
+        self.cursor = None
 
     # メニュー用ウィンドウ生成
     def showmenu(self):
         pt = gbl.get_party()
         Window.open(WINDOW_KEY.MENU, 0, 0, 16, 10, pt.status())
         Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
-        self.cur = Cursor("menu", [1, 5, 10], 14, -1)
+        self.cursor = Cursor(CURSOR_KEY.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
 
 
     def enter(self):
         self.showmenu()
 
     def update(self):
-        ret = self.cur.update()
+        ret = self.cursor.update()
 
         if ret == MENU_SEL.Save:
             # self.save_data()
@@ -108,27 +110,26 @@ class MapState_Menu(BaseState):
         elif ret == MENU_SEL.Spells:
             self.map.Spell()
         elif ret == MENU_SEL.Close:
+            Window.close()
             self.map.Field()
 
     def draw(self):
-        for key in Window.all:
-            Window.all[key].draw()
-        self.cur.draw()
+        pass
 
 
 
-class MapState_Spell(BaseState):
+class MapState_FieldSpell(BaseState):
     def __init__(self, parent):
-        self.state = STATE.Spell
+        self.state = STATE.FieldSpell
         self.map = parent
-        self.cur = None
+        self.cursor = None
 
     # メニュー用呪文リスト
     def menu_spells(self):
         pt = gbl.get_party()
 
         spells = pt.available_spells()
-        pos = self.cur.pos if self.cur else 0
+        pos = self.cursor.pos if self.cursor else 0
         spl = get_resource().spells[spells[pos]]
         t1 = f"げんざいのMP {pt.pl.mp}" if spl.on_menu else "ここでは つかえない"
         mp = spl.get_mp(pt.pl)
@@ -141,42 +142,40 @@ class MapState_Spell(BaseState):
             # 文字数省略のため最初の２文字だけ表示
             t3 += get_resource().spells[spl_id].name[0:2] + " "
         Window.message(["なにを つかいますか？", t3])
-        self.cur = Cursor("spells", list_x, 14, -1)
+        self.cursor = Cursor(CURSOR_KEY.SPELLS, list_x, 14, SPELL_SEL.Cancel)
 
     def enter(self):
         self.menu_spells()
 
     def update(self):
-        ret = self.cur.update()
+        if self.cursor is None:
+            return
 
+        ret = self.cursor.update()
         if ret is None:
             return
-        if ret >= 0:
+
+        if ret == SPELL_SEL.Cancel:
+            Window.close()
+            self.map.Field()
+        else:
             pt = gbl.get_party()
             spl_id = pt.available_spells()[ret]
             spl = get_resource().spells[spl_id]
             mp = spl.get_mp(pt.pl)
             if mp and mp <= pt.pl.mp and spl.on_menu:
                 pt.pl.mp -= mp
-                if spl_id == SPELL.CLOSE:
-                    Window.close()
-                    # self.cur = None
-                    # self.go_start_location()
-                    # px.play(3, 36)
+                if spl_id == SPELL.RETURN:
+                    Window.close(self.cursor)
+                    self.map.Field()
+                    pt.use_return()
                     return
                 elif spl_id == SPELL.HEAL:
                     pt.use_heal(mp)
-                    self.menu_spells()
-        else:
-            Window.pop(WINDOW_KEY.MENU_SPELLS)
-            self.map.popstate()
-        
+                    self.menu_spells()        
 
     def draw(self):
-        for key in Window.all:
-            Window.all[key].draw()
-        self.cur.draw()
-
+        pass
 
 
 class MapState_Shop(BaseState):
@@ -191,7 +190,7 @@ class MapState_Shop(BaseState):
     # ショップ用ウィンドウ生成
     def shop_show(self):
         Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
-        self.cursor = Cursor(CURSOR_KEY.SHOP, [1, 4, 7, 11], 14, -1)
+        self.cursor = Cursor(CURSOR_KEY.SHOP, [1, 4, 7, 11], 14, SHOP_SEL.Cancel)
 
         pt = gbl.get_party()
         t1, t2, cost = self.shop_get_item(self.cursor.pos)
@@ -240,8 +239,9 @@ class MapState_Shop(BaseState):
         if ret is None:
             return
 
-        if ret < 0:
+        if ret == SHOP_SEL.Cancel:
             Window.close()
+            self.map.Field()
         else:
             pt = gbl.get_party()
             _, _, cost = self.shop_get_item(ret)

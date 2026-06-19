@@ -4,7 +4,7 @@ from module.basestate import *
 from UI import *
 import appconfig as gbl
 from actor import *
-
+from collections import deque
 
 
 
@@ -73,6 +73,27 @@ class BattleState_Encount(BaseState):
         self.statecommand = parent
         self.cursor = None
 
+    def enter(self):
+        pt = gbl.get_party()
+        ms_id = pt.get_enemy_race()
+        self.battle_encount(ms_id)
+
+    def battle_encount(self, ms_id, evt=None):
+        data = get_resource().monsters[ms_id]
+        self.battle.ms = Actor(*data)
+        self.battle.bt_evt = evt
+        self.battle.bt_my_turn = True
+        msg_pre = [f"{self.battle.ms.name}が あらわれた"]
+
+        # 先行判定
+        if self.battle.pl.is_fasterthan(self.battle.ms):
+            self.statecommand.Command_wait()
+        else:
+            self.bt_msg = msg_pre + ["てきに せんてをとられた"]
+            self.battle.pushlog(self.bt_msg)
+            self.statecommand.BattleLog()
+
+
     def update(self):
         pass
     def draw(self):
@@ -95,14 +116,14 @@ class BattleState_CommandWait(BaseState):
 
         ret = self.cursor.update()
         if ret == BATTLE_SEL.Attack:
-            self.disable_cursor()
+            self.dispose_cursor()
             self.battle.battle_attack()
         elif ret == BATTLE_SEL.Spell:
             self.statecommand.Spell()
         elif ret == BATTLE_SEL.Run:
             self.statecommand.Run()
 
-    def disable_cursor(self):
+    def dispose_cursor(self):
         self.cursor = None
 
     # コマンド選択
@@ -110,7 +131,7 @@ class BattleState_CommandWait(BaseState):
         self.battle.bt_my_turn = True
         self.battle.bt_msg = msg_pre + ["どうする？", " たたかう じゅもん にげる"]
         y = 8 + len(self.battle.bt_msg) * 2
-        self.cursor = Cursor("bt_command", [1, 6, 11], y)
+        self.cursor = Cursor(CURSOR_KEY.BATTLE_COMMAND, [1, 6, 11], y)
         self.battle.battle_showwindow()
 
 
@@ -143,10 +164,13 @@ class BattleState_Spell(BaseState):
             return
 
         ret = self.cursor.update()
+        if ret is None:
+            return
+
         if ret >= 0:
             pt = gbl.get_party()
             spl_id = pt.available_spells(True)[ret]
-            spl = self.spells[spl_id]
+            spl = get_resource().spells[spl_id]
             mp = spl.get_mp(pt.pl)
             if mp and mp <= pt.pl.mp:
                 pt.pl.mp -= mp
@@ -154,7 +178,7 @@ class BattleState_Spell(BaseState):
                 self.battle.bt_msg = [f"{pt.pl.name}は {spl.name}をとなえた"]
                 if spl_id == SPELL.FIRE:
                     dmg = 0 if self.battle.ms.resist else px.rndi(24, 30)
-                    self.battle_damage(self.ms, dmg)
+                    self.battle.battle_damage(self.battle.ms, dmg)
                 elif spl_id == SPELL.HEAL:
                     ret = pt.use_heal(mp)
                     self.battle.bt_msg += [f"{ret}HP かいふくした"]
@@ -162,11 +186,11 @@ class BattleState_Spell(BaseState):
                     dmg = 0
                     for _ in range(mp):
                         dmg += px.rndi(8, 12)
-                    self.battle_damage(self.battle.ms, dmg)
+                    self.battle.battle_damage(self.battle.ms, dmg)
                 self.battle.battle_showwindow()
         else:
             self.statecommand.Command_wait()
-            self.cursor.pos = SPELL.CLOSE
+            self.cursor.pos = SPELL.RETURN
 
     def draw(self):
         pass
@@ -204,9 +228,10 @@ class BattleState_Run(BaseState):
 
     # 逃げる
     def battle_run(self):
-        rate = 1.0 + self.pl.spd / self.ms.spd
+        rate = 1.0 + self.battle.pl.spd / self.battle.ms.spd
         if rate > px.rndf(0.0, 2.0):
             self.battle.scene.Main()
+            Window.clear()
             Window.message(["にげのびた..."])
         else:
             self.battle.bt_msg = ["にげられなかった"]
@@ -215,36 +240,53 @@ class BattleState_Run(BaseState):
 
 class BattleState_BattleLog(BaseState):
     def __init__(self, parent):
-        self.state = STATE.Attack
+        self.state = STATE.BattleLog
         self.battle = parent.parent
         self.statecommand = parent
-        self.battlelog = []
+        self.cursor = None
+        self.battlelog = deque()
+
+    def enter(self):
+        self.battlelog = self.battle.battlelog
+        self.show_battlelog()
+        
+    def show_battlelog(self):
+        pt = gbl.get_party()
+        Window.open(WINDOW_KEY.BATTLESTS, 8, 0, 16, 8, pt.battlestatus())
+        if self.is_remain():
+            Window.open(WINDOW_KEY.BATTLEMSG, 0, 8, 16, 16, self.battlelog[0])
+
+    def is_remain(self):
+        return True if len(self.battlelog) > 0 else False
 
     def update(self):
-        pass
+        btn = get_btn_state()
+
+        if btn["a"] or btn["b"]:
+            self.poplog()
+
+            # どちらかが倒れた
+            if self.battle.is_players_win():
+                self.statecommand.Result()
+            elif self.battle.is_enemies_win():
+                self.battle.scene.GameOver()
+            # 攻守が入れ替わる
+            elif self.battle.bt_my_turn:
+                self.battle.battle_monster_action()
+            else:
+                # self.battle_command()
+                self.statecommand.Command_wait()
+
     def draw(self):
         pass
 
-    def pushlog(self, state):
-        tbl = self.table[state]
-        curr = self.current()
-        if curr: 
-            curr.exit()
-
-        self._stack.append(tbl)
-        curr = self.current()
-        if curr: 
-            curr.enter()
+    def pushlog(self, log):
+        self.battlelog.append(log)
 
     def poplog(self):
-        curr = self.current()
-        if curr: 
-            curr.exit()
-
-        self._stack.pop()
-        curr = self.current()
-        if curr: 
-            curr.enter()
+        if len(self.battlelog) <= 0:
+            return
+        self.battlelog.pop()
 
     def current(self):
         if not self.battlelog:
@@ -260,39 +302,37 @@ class BattleState_Result(BaseState):
         self.statecommand = parent
         self.cursor = None
 
+    def enter(self):
+        self.battle_win()
+        
     def update(self):
-        # どちらかが倒れた
-        if self.battle.pl.hp <= 0:
-            self.battle.scene.End()
-        elif self.battle.ms.hp <= 0:
-            self.battle.battle_win()
-        # 攻守が入れ替わる
-        elif self.battle.bt_my_turn:
-            self.battle.battle_monster_action()
-        else:
-            self.statecommand.Command_wait()
+        pass
 
     def draw(self):
         pass
 
     # 勝利
     def battle_win(self):
+        pt = gbl.get_party()
+
         t = ["たたかいに かった"]
-        if self.bt_evt == "boss1":
+        if self.battle.bt_evt == "boss1":
             t += [f"「{get_resource().spells[SPELL.HEAL].name}」を おぼえた"]
-            self.flags.append("sp2")
-        elif self.bt_evt == "boss2":
+            pt.flags.append("sp2")
+        elif self.battle.bt_evt == "boss2":
             t += [f"「{get_resource().spells[SPELL.BURST].name}」を おぼえた"]
-            self.flags.append("sp3")
-        elif self.bt_evt == "boss3":
-            self.flags.append("4-3")
+            pt.flags.append("sp3")
+        elif self.battle.bt_evt == "boss3":
+            pt.flags.append("4-3")
             t = ["ひほうを てにいれた！"]
         else:
-            gold = int(self.ms.gold * px.rndf(0.7, 1.0) + 0.99)
-            gbl.get_party().add_gold(gold)
+            gold = int(self.battle.ms.gold * px.rndf(0.7, 1.0) + 0.99)
+            pt.add_gold(gold)
             t += [f"{gold}G てにいれた"]
+        
+        self.battle.scene.Main()
+        Window.clear()
         Window.message(t)
-        self.scene.Main()
 
 
 

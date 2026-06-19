@@ -8,7 +8,7 @@ import appconfig as gbl
 
 
 
-class ActorStates():
+class ActorStates(BaseContext):
     def __init__(self, parent):
         self.parent = parent
         self.table = {
@@ -34,13 +34,6 @@ class ActorStates():
     def Battle(self):
         self.changeState(STATE.Battle)
 
-    def changeState(self, nextState):
-        tbl = self.table[nextState]
-        if (self.currentState != None): 
-            self.currentState.exit()
-
-        self.currentState = tbl
-        self.currentState.enter()
 
 
 class STATE(Enum):
@@ -57,7 +50,7 @@ class ActorState_Idle(BaseState):
     def __init__(self, parent):
         self.state = STATE.Idle
         self.actor = parent.parent
-        self.statecommand = parent
+        self.action = parent
     
     def update(self):
         btn = get_btn_state()
@@ -66,12 +59,12 @@ class ActorState_Idle(BaseState):
         pt.dy = btn["d"] - btn["u"]
         pt.dx = btn["r"] - btn["l"] if not pt.dy else 0
         if pt.dy or pt.dx:
-            self.statecommand.Move()
+            self.action.Move()
             self.actor.move_start()
         elif btn["a"]:
             Window.close()
         elif btn["b"]:  # メニュー呼び出し
-            gbl.get_screen().context.currentScene.currentMap.Menu()
+            gbl.get_screen().context.currentState.map.Menu()
             # pt.menu_show()
             # pt.scene = "menu"
 
@@ -81,7 +74,7 @@ class ActorState_Move(BaseState):
     def __init__(self, parent):
         self.state = STATE.Move
         self.actor = parent.parent
-        self.statecommand = parent
+        self.action = parent
 
     def update(self):
         pt = self.actor
@@ -90,7 +83,7 @@ class ActorState_Move(BaseState):
         pt.dx += pt.spd * ((pt.dx > 0) - (pt.dx < 0))
         # 移動終了
         if (pt.dy % 16, pt.dx % 16) == (0, 0):
-            self.statecommand.Idle()
+            self.action.Idle()
             self.actor.move_end()
 
 

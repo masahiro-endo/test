@@ -6,6 +6,8 @@ from actor import *
 import appconfig as gbl
 from module.mapstate import *
 from module.battlestate import *
+import heapq
+import random
 
 
 
@@ -13,7 +15,7 @@ from module.battlestate import *
 
 class SceneStates():
     def __init__(self):
-        self.context = SceneStateContext(self, STATE.Main)
+        self.context = SceneStateContext(self, STATE.Battle)
 
     def update(self):
         self.context.update()
@@ -30,8 +32,8 @@ class SceneStates():
     def Battle(self):
         self.context.changeState(STATE.Battle)
 
-    def End(self):
-        self.context.changeState(STATE.End)
+    def GameOver(self):
+        self.context.changeState(STATE.GameOver)
 
 
 
@@ -40,7 +42,7 @@ class STATE(Enum):
     Title = auto()
     Main = auto()
     Battle = auto()
-    End = auto()
+    GameOver = auto()
 
 
 
@@ -53,7 +55,7 @@ class SceneStateContext(BaseContext):
             STATE.Title: SceneState_Title(self),
             STATE.Main: SceneState_Main(self),
             STATE.Battle: SceneState_Battle(self),
-            STATE.End: SceneState_End(self),
+            STATE.GameOver: SceneState_GameOver(self),
         }
         self.changeState(initState)
 
@@ -74,7 +76,7 @@ class SceneState_Title(BaseState):
         self.scene = parent.parent
 
         Window.message([" New Cont Exit", " (push [Z] Key)"])
-        self.cursor = Cursor("welcome", [1, 5, 10], 12)
+        self.cursor = Cursor(CURSOR_KEY.WELCOME, [1, 5, 10], TITLE_SEL.Cancel)
 
     def update(self):
         ret = self.cursor.update()
@@ -108,6 +110,10 @@ class SceneState_Main(BaseState):
 
         self.map = MapStates(self)
 
+    def enter(self):
+        Window.clear()
+        self.map.Field()
+
     def update(self):
         self.map.update()
 
@@ -124,35 +130,59 @@ class SceneState_Main(BaseState):
 
 class SceneState_Battle(BaseState):
     def __init__(self, parent):
-        self.state = STATE.Main
+        self.state = STATE.Battle
         self.scene = parent.parent
         self.cursor = None
+
         self.pl = gbl.get_party().pl
-        self.battlephase = BattleStates(self)
-        self.battlelog = []   
+        self.battlelog = deque()
+        self.turn_queue = []
+        self.action = BattleStates(self)
+
+    def fill_turn_queue(self):
+        self.turn_queue.clear()
+        for char in self.pl + self.ms:
+            if char.is_alive():
+                char.btl_spd = char.spd * px.rndf(1.0, 2.0)
+                heapq.heappush(self.turn_queue, (-char.btl_spd, char))
+
+    def next_turn(self):
+        if not self.turn_queue:
+            self.fill_turn_queue()
+        _, self.current_actor = heapq.heappop(self.turn_queue)
+
+        if not self.current_actor.is_alive():
+            self.next_turn()
+            return
+
+        if self.current_actor.is_player:
+            self.state = "PLAYER_CMD"
+            self.selected_cmd = 0
+            self.selected_target = 0
+        else:
+            self.state = "ENEMY_ACT"
+
+    def pushlog(self, log):
+        self.battlelog.append(log)
+
+    def poplog(self):
+        if len(self.battlelog) <= 0:
+            return
+        self.battlelog.pop()
+
+    def currentlog(self):
+        if not self.battlelog:
+            return None
+        return self.battlelog[-1]
 
     def enter(self):
-        self.battle_start(0)
+        self.action.Encount()
 
     def update(self):
-        self.battlephase.update()
-
-        btn = get_btn_state()
-        if btn["a"] or btn["b"]:
-            # どちらかが倒れた
-            if self.pl.hp <= 0:
-                self.scene.End()
-            elif self.ms.hp <= 0:
-                self.battle_win()
-            # 攻守が入れ替わる
-            elif self.bt_my_turn:
-                self.battle_monster_action()
-            else:
-                # self.battle_command()
-                self.battlephase.Command_wait()
+        self.action.update()
 
     def draw(self):
-        self.battlephase.draw()
+        self.action.draw()
 
         # バトル用draw処理（モンスターグラフィック表示）
         u = self.ms.img % 4 * 64
@@ -162,55 +192,17 @@ class SceneState_Battle(BaseState):
         for key in Window.all:
             Window.all[key].draw()
         
-        if self.battlephase.currentState.cursor:
-            self.battlephase.currentState.cursor.draw()
+        if self.action.currentState.cursor:
+            self.action.currentState.cursor.draw()
 
 
-    def battle_start(self, ms_id, evt=None):
-        data = get_resource().monsters[ms_id]
-        # self.scene = "battle"
-        self.ms = Actor(*data)
-        self.bt_evt = evt
-        self.bt_my_turn = True
-        msg_pre = [f"{self.ms.name}が あらわれた"]
-        # 先行判定
-        if self.pl.spd * px.rndf(1.0, 2.0) >= self.ms.spd * px.rndf(1.0, 2.0):
-            # self.battle_command(msg_pre)
-            self.battlephase.Command_wait()
-        else:
-            self.bt_msg = msg_pre + ["てきに せんてをとられた"]
-            self.battle_showwindow()
-        # self.wait = True
-        # self.play_bgm(0)
-
-    def battle_command(self, msg_pre=[]):
-        self.bt_my_turn = True
-        self.bt_msg = msg_pre + ["どうする？", " たたかう じゅもん にげる"]
-        y = 8 + len(self.bt_msg) * 2
-        self.cursor = Cursor("bt_command", [1, 6, 11], y)
-        self.battle_showwindow()
 
     # バトル用ウィンドウ生成
     def battle_showwindow(self):
-        pl = self.pl
-        t = [pl.name, f"HP {pad(pl.hp,3)}", f"MP  {pad(pl.mp,2)}"]
-        Window.open("bt_stat", 8, 0, 16, 8, t)
-        Window.open("bt_msg", 0, 8, 16, 16, self.bt_msg)
+        pt = gbl.get_party()
+        Window.open(WINDOW_KEY.BATTLESTS, 8, 0, 16, 8, pt.battlestatus())
+        Window.open(WINDOW_KEY.BATTLEMSG, 0, 8, 16, 16, self.bt_msg)
 
-    # バトル用呪文リスト
-    def battle_spells(self):
-        spells = self.available_spells(True)
-        pos = self.cursor.pos if self.cursor else 0
-        mp = get_resource().spells[spells[pos]].get_mp(self.pl)
-        t1 = " "
-        list_x = []
-        for spl_id in spells:
-            list_x.append(len(t1))
-            t1 += self.spells[spl_id].name + " "
-        self.bt_msg = ["なにを つかいますか？", t1, f" MP {pad(mp,2)}"]
-        if not self.cursor:
-            self.cursor = Cursor("bt_spells", list_x, 12, -1)
-        self.battle_showwindow()
 
     # 攻撃
     def battle_attack(self, msg_pre=[]):
@@ -229,16 +221,25 @@ class SceneState_Battle(BaseState):
             self.battle_damage(target, dmg)
         else:  # 回避された
             self.bt_msg += [f"{target.name}は みをかわした"]
-        
 
-        self.battle_showwindow()
+        self.pushlog(self.bt_msg)
+        self.action.BattleLog()
+        # self.battle_showwindow()
 
     # ダメージ処理
     def battle_damage(self, target, dmg):
         self.bt_msg += [f"{target.name}に {dmg}ダメージ"]
         target.hp = max(target.hp - dmg, 0)
-        if self.bt_my_turn and target.hp <= 0:
+        if self.bt_my_turn and not target.is_alive():
             self.bt_msg += [f"{target.name}を たおした"]
+        self.pushlog(self.bt_msg)
+
+    def is_players_win(self):
+        pt = gbl.get_party()
+        return pt.get_alive_actors() and not self.ms.is_alive()
+
+    def is_enemies_win(self):
+        return not self.is_players_win()
 
     # 逃げる
     def battle_run(self):
@@ -253,45 +254,35 @@ class SceneState_Battle(BaseState):
     # 敵の行動
     def battle_monster_action(self, msg_pre=[]):
         self.bt_my_turn = False
+        
+        pt = gbl.get_party()
+        target = random.choice(pt.get_alive_actors())
+
         # MPがある敵はファイアを使う
         spl = get_resource().spells[SPELL.FIRE]
-        if self.ms.mp >= spl.mp and px.rndi(0, 1) == 0:
+        if self.ms.is_able_cast(spl):
             self.ms.mp -= spl.mp
             self.bt_msg = [f"{self.ms.name}は{spl.name}をとなえた"]
             dmg = px.rndi(12, 18)  # 敵のファイアは少し弱め
-            self.battle_damage(self.pl, dmg)
-            self.battle_showwindow()
+            self.battle_damage(target, dmg)
+            # self.battle_showwindow()
         else:
             self.battle_attack(msg_pre)
 
-    # 勝利
-    def battle_win(self):
-        t = ["たたかいに かった"]
-        if self.bt_evt == "boss1":
-            t += [f"「{get_resource().spells[SPELL.HEAL].name}」を おぼえた"]
-            self.flags.append("sp2")
-        elif self.bt_evt == "boss2":
-            t += [f"「{get_resource().spells[SPELL.BURST].name}」を おぼえた"]
-            self.flags.append("sp3")
-        elif self.bt_evt == "boss3":
-            self.flags.append("4-3")
-            t = ["ひほうを てにいれた！"]
-        else:
-            gold = int(self.ms.gold * px.rndf(0.7, 1.0) + 0.99)
-            gbl.get_party().add_gold(gold)
-            t += [f"{gold}G てにいれた"]
-        Window.message(t)
-        self.scene.Main()
 
 
-class SceneState_End(BaseState):
+class SceneState_GameOver(BaseState):
     def __init__(self, parent):
-        self.state = STATE.End
+        self.state = STATE.GameOver
         self.scene = parent.parent
 
     def enter(self):
+        self.game_over()
+
+    def game_over(self):
         pt = gbl.get_party()
-        pt.game_over()
+        Window.clear()
+        Window.message([f"{pt.pl.name}は", "いしきを うしなった"])
 
     def update(self):
         btn = get_btn_state()
@@ -300,6 +291,7 @@ class SceneState_End(BaseState):
             pt.gold = pt.gold // 2
             pt.pl.hp = 1
             self.scene.Main()
+            pt.get_start_location()
 
     def draw(self):
         for key in Window.all:

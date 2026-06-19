@@ -1,7 +1,8 @@
 import pyxel as px
 from UI import *
 from module.actorstate import *
-
+from abc import ABC, abstractmethod
+from typing import List
 
 
 
@@ -12,7 +13,7 @@ from module.actorstate import *
 # 呪文インデックス定数
 class SPELL(IntEnum):
     FIRE = 0
-    CLOSE = auto()
+    RETURN = auto()
     HEAL = auto()
     BURST = auto()
 
@@ -42,9 +43,14 @@ class Obstacle:
 
 
 
+class ACTOR(Enum):
+    ISPLAYER = True
+    ISENEMY = False
+
+
 # 戦闘用キャラクタ（自分とモンスター）
 class Actor:
-    def __init__(self, name, hp, mp, atk, spd, resist=0, img=None, gold=0):
+    def __init__(self, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0):
         self.name = name
         self.mhp = hp
         self.hp = hp
@@ -52,29 +58,74 @@ class Actor:
         self.mp = mp
         self.atk = atk
         self.spd = spd
+        self.btl_spd = spd
+        self.is_player = is_player
         self.resist = resist  # 呪文（ファイア）耐性
         self.img = img  # モンスターの場合の画像イメージ
         self.gold = gold  # 勝利時報酬
 
+    def __lt__(self, other):
+        return self.btl_spd < other.btl_spd
 
-class Model_Party:
+    def is_alive(self):
+        return self.hp > 0
+
+    def is_fasterthan(self, char):
+        return True if self.spd * px.rndf(1.0, 2.0) >= char.spd * px.rndf(1.0, 2.0) else False
+
+    def is_able_cast(self, spl):
+        return True if self.mp >= spl.mp and px.rndi(0, 1) == 0 else False
+
+
+
+# --- Observer インターフェース ---
+class Observer(ABC):
+    @abstractmethod
+    def update(self, subject):
+        pass
+
+# --- Subject 基底クラス ---
+class Subject(ABC):
     def __init__(self):
-        self.pl = Actor("あなた", 30, 6, 12, 12)
+        self._observers = []
+
+    def attach(self, observer):
+        if observer not in self._observers:
+            self._observers.append(observer)
+
+    def detach(self, observer):
+        if observer in self._observers:
+            self._observers.remove(observer)
+
+    def notify(self):
+        for observer in self._observers:
+            observer.update(self)
+
+
+# --- 具体的な Subject: プレイヤー ---
+class PartySubject(Subject):
+
+    def __init__(self):
+        super().__init__()
+        self.players = [
+            Actor("あなた", 30, 6, 12, 12, ACTOR.ISPLAYER),
+        ]
+        self.pl = self.players[0]
         self.gold = 0
         self.keys = 0  # カギの数
         self.flags = []  # フラグ（宝箱、扉などの判定用）
         self.enc = 0  # エンカウント
         self.frames = 0
 
-        self.state = ActorStates(self)
-        (self.x, self.y, self.z) = (8, 21, 0)
+        self.action = ActorStates(self)
+        self.get_start_location()
         (self.dx, self.dy, self.spd) = (0, 0, 4)
 
     def update(self):
-        self.state.update()
+        self.action.update()
 
     def draw(self):
-        self.state.draw()
+        self.action.draw()
 
     def status(self):
         return [
@@ -84,25 +135,18 @@ class Model_Party:
             f" {pad(self.gold,4)}G  カギ {pad(self.keys,2)}こ",
         ]
 
+    def battlestatus(self):
+        return [self.pl.name, f"HP {pad(self.pl.hp,3)}", f"MP  {pad(self.pl.mp,2)}"]
 
-    @property
-    def event(self):
-        x = self.x + self.dx
-        y = self.y + self.dy
-        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
-        if tm == (0, 2):
-            return "-"  # 壁
-        elif tm == (2, 2):
-            return "@"  # 泉
-        elif tm == (4, 0):
-            return "<"  # 上り階段
-        elif tm == (6, 0):
-            return ">"  # 下り階段
-        for key in get_resource().obstacles:
-            ob = get_resource().obstacles[key]
-            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
-                return key
-        return ""
+    def get_alive_actors(self):
+        return [p for p in self.players if p.is_alive()]
+
+    def get_positon(self):
+        return (self.x + self.dx, self.y + self.dy)
+
+    def get_current_floor(self):
+        return self.z
+
 
     # 現在使える呪文
     def available_spells(self, on_battle=False):
@@ -121,10 +165,45 @@ class Model_Party:
         self.pl.hp += ret
         return ret
 
+    def use_return(self):
+        screen = gbl.get_screen()
+        if screen: screen.Main()
+        (self.x, self.y, self.z) = (8, 21, 0)
+        # self.play_bgm(2)
+
+    def get_start_location(self):
+        self.use_return()
+
+    def add_gold(self, gold):
+        self.gold = min(self.gold + gold, 9999)
+
+
+    @property
+    def get_map_event(self):
+        x = self.x + self.dx
+        y = self.y + self.dy
+
+        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
+        if tm == (0, 2):
+            return "-"  # 壁
+        elif tm == (2, 2):
+            return "@"  # 泉
+        elif tm == (4, 0):
+            return "<"  # 上り階段
+        elif tm == (6, 0):
+            return ">"  # 下り階段
+        for key in get_resource().obstacles:
+            ob = get_resource().obstacles[key]
+            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
+                return key
+        return ""
+
     # 移動（１ステップ）開始
     def move_start(self):
+        # self.notify()
+
         # 移動先のイベントを取得
-        evt = self.event
+        evt = self.get_map_event
 
         if not evt or evt in (">", "<"):  # 階段
             self.dx *= self.spd
@@ -132,6 +211,7 @@ class Model_Party:
             self.moving = True
             Window.close()  # ウィンドウが表示されていれば閉じる
             return
+        
         self.dx, self.dy = (0, 0)
         if evt == "@":  # 泉
             px.play(3, 32)
@@ -193,8 +273,11 @@ class Model_Party:
         self.dy = 0
         self.dx = 0
         self.moving = False
-        if self.event in ("<", ">"):  # 階段
-            self.z += 1 if self.event == ">" else -1
+
+        evt = self.get_map_event
+
+        if evt in ("<", ">"):  # 階段
+            self.z += 1 if evt == ">" else -1
             # エンディング判定
             if self.z == 0 and "4-3" in self.flags and not "end" in self.flags:
                 s = self.frames // 30
@@ -214,18 +297,49 @@ class Model_Party:
         if self.z == 0 or ("4-3" in self.flags and not "end" in self.flags):
             return
         self.enc += 1
+        self.roll_encount()
+
+    def roll_encount(self):
         if self.enc > 12 and px.rndi(0, 7) == 0:
             self.enc = 0
-            ms_id = self.z - (1 if px.rndi(0, 3) < 3 else 0)
-            self.battle_start(ms_id)
+            # ms_id = self.get_enemy_race()
+            # self.battle_start(ms_id)
+            gbl.get_screen().Battle()
 
-    def add_gold(self, gold):
-        self.gold = min(self.gold + gold, 9999)
+    def get_enemy_race(self):
+            return self.get_current_floor() - (1 if px.rndi(0, 3) < 3 else 0)
 
-    def game_over(self):
-        Window.close()
-        Window.message([f"{self.pl.name}は", "いしきを うしなった"])
-        # self.scene = "gameover"
+
+
+# --- 具体的な Observer: Move ---
+class EventObserver(Observer):
+    def update(self, subject: Subject):
+        if isinstance(subject, PartySubject):
+            self.subject = subject
+            self.get_map_event()
+
+    @property
+    def get_map_event(self):
+        x = self.subject.x + self.subject.dx
+        y = self.subject.y + self.subject.dy
+
+        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
+        if tm == (0, 2):
+            return "-"  # 壁
+        elif tm == (2, 2):
+            return "@"  # 泉
+        elif tm == (4, 0):
+            return "<"  # 上り階段
+        elif tm == (6, 0):
+            return ">"  # 下り階段
+        for key in get_resource().obstacles:
+            ob = get_resource().obstacles[key]
+            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
+                return key
+        return ""
+
+    def check_event(self):
+        pass
 
 
 
@@ -305,14 +419,14 @@ class Resources:
             }
             # モンスターデータ
             cls._instance.monsters = (
-                ["かぼちゃ", 12, 0, 6, 12, 0, 0, 20],
-                ["こおに", 24, 0, 10, 13, 0, 1, 40],
-                ["おにび", 32, 2, 14, 18, 1, 2, 80],
-                ["ゆうれい", 40, 0, 17, 32, 0, 3, 160],
-                ["にんじゃ", 64, 0, 34, 28, 0, 4, 320],
-                ["まどうし", 120, 4, 8, 15, 0, 5, 0],
-                ["だてんし", 200, 0, 20, 27, 1, 6, 0],
-                ["めがみ", 400, 0, 99, 99, 0, 7, 0],
+                ["かぼちゃ", 12, 0, 6, 12, ACTOR.ISENEMY, 0, 0, 20],
+                ["こおに", 24, 0, 10, 13, ACTOR.ISENEMY, 0, 1, 40],
+                ["おにび", 32, 2, 14, 18, ACTOR.ISENEMY, 1, 2, 80],
+                ["ゆうれい", 40, 0, 17, 32, ACTOR.ISENEMY, 0, 3, 160],
+                ["にんじゃ", 64, 0, 34, 28, ACTOR.ISENEMY, 0, 4, 320],
+                ["まどうし", 120, 4, 8, 15, ACTOR.ISENEMY, 0, 5, 0],
+                ["だてんし", 200, 0, 20, 27, ACTOR.ISENEMY, 1, 6, 0],
+                ["めがみ", 400, 0, 99, 99, ACTOR.ISENEMY, 0, 7, 0],
             )
             # 呪文データ
             cls._instance.spells = [
