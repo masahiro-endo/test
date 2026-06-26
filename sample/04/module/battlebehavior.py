@@ -37,7 +37,7 @@ class BattleBehavior():
 
         # バトル用draw処理（モンスターグラフィック表示）
         if len(self.mspt._member) > 0:
-            act = self.mspt._member[0]
+            act = self.mspt[0]
             u = act.img % 4 * 64
             v = act.img // 4 * 64 + 64
             # blt(x, y, imgbank, u, v, w, h, [colkey])
@@ -95,6 +95,7 @@ class BattleBehavior():
         self.bt_evt = evt
 
         data = gbl.resource().monsters[ms_id]
+        data[0:0] = [self.mspt]
         self.mspt.add_member(Actor(*data))
 
         self.selected_target = 0

@@ -74,7 +74,7 @@ class BattleState_Encount(BaseState):
     def battle_encount(self, ms_id, evt=None):
         self.battle.bt_evt = evt
 
-        data = get_resource().monsters[ms_id]
+        data = gbl.resource().monsters[ms_id]
         self.battle.ms = Actor(*data)
         bt_msg = [f"{self.battle.ms.name}が あらわれた"]
 
@@ -134,7 +134,7 @@ class BattleState_Attack(BaseState):
         self.statecommand = parent
 
     def enter(self):
-        bt_msg = self.battle.pl.battlelog_action_atk(self.battle.ms)
+        bt_msg = self.battle.pt[0].battlelog_action_atk(self.battle.mspt[0])
         self.battle.pushlog(bt_msg)
         self.battle.end_action()
 

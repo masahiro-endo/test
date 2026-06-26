@@ -141,7 +141,7 @@ class CURSOR_KEY(Enum):
 class Cursor:
 
     def __init__(self, key, list_x, y, cancel_pos=None):
-        gbl.cursor = self
+        gbl.current_cursor = self
         self.key = key
         self.list_x = list_x
         self.y = y
@@ -172,7 +172,7 @@ class Cursor:
         return None
 
     def dispose(self):
-        gbl.cursor = None
+        gbl.current_cursor = None
         del self
 
 

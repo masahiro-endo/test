@@ -107,8 +107,8 @@ class GameView:
         for key in Window.all:
             Window.all[key].draw()
         
-        if gbl.current_cursor():
-            gbl.current_cursor().draw()
+        if gbl.current_cursor:
+            gbl.current_cursor.draw()
 
 
         # プレイヤー

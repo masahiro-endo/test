@@ -82,7 +82,7 @@ class MapState_Field(BaseState):
         px.blt(56, 48, 0, u, v, 16, 16, 1)
         # ステータス表示
         px.rect(0, 112, 128, 16, 0)
-        t = f"HP{Meth.pad(pt.member[0].hp,3)} MP{Meth.pad(pt.member[0].mp,2)} {Meth.pad(pt.gold,4)}G"
+        t = f"HP{Meth.pad(pt._member[0].hp,3)} MP{Meth.pad(pt._member[0].mp,2)} {Meth.pad(pt.gold,4)}G"
         Meth.draw_text(0, 14, t)
 
 
@@ -191,17 +191,51 @@ class MapState_Shop(BaseState):
     def enter(self):
         self.shop_show()
 
+    def update(self):
+        if self.cursor is None:
+            return
+
+        ret = self.cursor.update()
+        if ret is None:
+            return
+
+        if ret == SHOP_SEL.Cancel:
+            Window.close()
+            self.map.Field()
+        else:
+            pt = gbl.player_party()
+            _, _, cost = self.shop_get_item(ret)
+            if cost == 0 or pt.gold < cost:
+                return
+            pt.gold -= cost
+            if ret == SHOP_SEL.HP:
+                pt.pl.mhp += 5
+                pt.pl.hp = pt.pl.mhp
+            elif ret == SHOP_SEL.MP:
+                pt.pl.mmp += 2
+                pt.pl.mp = self.pl.mmp
+            elif ret == SHOP_SEL.STR:
+                pt.pl.atk += 2
+            elif ret == SHOP_SEL.AGI:
+                pt.pl.spd += 2
+            # px.play(3, 32)
+            self.shop_show()
+
+    def draw(self):
+        pass
+
+
     # ショップ用ウィンドウ生成
     def shop_show(self):
-        Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
+        Window.message(["レベルアップするかい？", " HP MP ちから はやさ"])
         self.cursor = Cursor(CURSOR_KEY.SHOP, [1, 4, 7, 11], 14, SHOP_SEL.Cancel)
 
         pt = gbl.get_party()
         t1, t2, cost = self.shop_get_item(self.cursor.pos)
         if cost:
-            t3 = f"{cost}Gで パワーアップ"
+            t3 = f"{cost}Gで レベルアップ"
         else:
-            t3 = "もう パワーアップできない"
+            t3 = "もう レベルアップできない"
         t4 = "# おかねが たりません" if cost > pt.gold else ""
         t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {Meth.pad(pt.gold,4)}G)"]
         Window.open(WINDOW_KEY.SHOP, 0, 0, 16, 10, t)
@@ -234,39 +268,5 @@ class MapState_Shop(BaseState):
                 t2 = Meth.pad(pt.pl.spd + 2, 3)
                 cost = pt.pl.spd * 5
         return t1, t2, cost
-
-    def update(self):
-        if self.cursor is None:
-            return
-
-        ret = self.cursor.update()
-        if ret is None:
-            return
-
-        if ret == SHOP_SEL.Cancel:
-            Window.close()
-            self.map.Field()
-        else:
-            pt = gbl.get_party()
-            _, _, cost = self.shop_get_item(ret)
-            if cost == 0 or pt.gold < cost:
-                return
-            pt.gold -= cost
-            if ret == SHOP_SEL.HP:
-                pt.pl.mhp += 5
-                pt.pl.hp = pt.pl.mhp
-            elif ret == SHOP_SEL.MP:
-                pt.pl.mmp += 2
-                pt.pl.mp = self.pl.mmp
-            elif ret == SHOP_SEL.STR:
-                pt.pl.atk += 2
-            elif ret == SHOP_SEL.AGI:
-                pt.pl.spd += 2
-            # px.play(3, 32)
-            self.shop_show()
-
-    def draw(self):
-        pass
-
 
 

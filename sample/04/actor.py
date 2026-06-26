@@ -62,7 +62,7 @@ class Actor(Subject):
     # 攻撃
     def battlelog_action_atk(self, target, msg_pre=[]):
 
-        def get_hit_rate(self, target):
+        def get_hit_rate(target):
             hit_rate = max(min(self.spd / target.spd, 1.5), 0.25)
             hit_rate = min(hit_rate - px.rndf(0.0, 1.0), 1.0)
             return hit_rate
@@ -72,7 +72,7 @@ class Actor(Subject):
         hit_rate = get_hit_rate(target)
         if hit_rate > 0.0:
             dmg = int(self.atk * (1 + hit_rate) / 2 + 0.99)
-            bt_msg += self.battlelog_take_damage(target, dmg)
+            bt_msg += self.battlelog_take_dmg(target, dmg)
         else:  # 回避された
             bt_msg += [f"{target.name}は みをかわした"]
         return bt_msg
@@ -127,6 +127,21 @@ class Party():
     def __init__(self):
         self._member = []
 
+    def __len__(self):
+        return len(self._member)
+    
+    def __getitem__(self, index):
+        return self._member[index]
+    
+    def __setitem__(self, index, value):
+        self._member[index] = value
+    
+    def __contains__(self, item):
+        return item in self._member
+    
+    def __iter__(self):
+        return iter(self._member)
+
     def add_member(self, chr):
         chr.attach(LogObserver())
         self._member.append(chr)
@@ -136,6 +151,7 @@ class Party():
             del self._member[idx]
         except:
             raise Exception("the specified member doesn't exist.：" + str(idx))
+
     def clear_member(self):
         self._member.clear()
         
