@@ -1,56 +1,41 @@
+
 import pyxel as px
-import json
-import copy
 from UI import *
 from actor import *
 import appconfig as gbl
 from module.scenestate import *
-
-
-
-IS_WEB = True
-
-try:
-    from js import window
-except:
-    IS_WEB = False
+from resource.mapresource import *
+import os
+import sys
+os.chdir(os.path.dirname(__file__))
+sys.path.append(os.path.dirname(__file__))
 
 
 
 
 
 
-# -------------------------
-# Model: ゲーム状態
-# -------------------------
+
+
 class GameModel:
     def __init__(self):
         pass
 
 
 
-# -------------------------
-# ViewModel: ロジック制御
-# -------------------------
 class GameViewModel:
     def __init__(self, model: GameModel):
         self.model = model
 
-        self.config = gbl.get_settings()
-        self.config.party = PartySubject()
-        self.config.party.attach(EventObserver())
+        self.config = gbl.global_setting()
+        self.config.party = PlayerParty()
+        self.config.resource = MapResources()
 
-        self.config.screen = SceneStates()
-        self.screen = gbl.get_screen()
-        self.screen.Battle()
-
-        self.cur = None
-        self.wait = False
-        self.bgm = None
-        self.scene = ""
+        self.config.scene = SceneStates()
+        self.scene = gbl.scene()
 
     def update(self):
-        self.screen.update()
+        self.scene.update()
 
         # btn = get_btn_state()
 
@@ -99,13 +84,10 @@ class GameViewModel:
 
 
 
-
-# -------------------------
-# View: 描画とイベントループ
-# -------------------------
 class GameView:
     def __init__(self, view_model: GameViewModel):
         self.vm = view_model
+        self.vm.scene.Battle()
 
         px.init(
             128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2
@@ -119,8 +101,14 @@ class GameView:
         self.vm.update()
 
     def draw(self):
-        px.cls(0)
-        self.vm.screen.draw()
+        px.cls(pyxel.COLOR_BLACK)
+        self.vm.scene.draw()
+
+        for key in Window.all:
+            Window.all[key].draw()
+        
+        if gbl.current_cursor():
+            gbl.current_cursor().draw()
 
 
         # プレイヤー
@@ -138,10 +126,7 @@ class GameView:
 
 
 
-# -------------------------
-# 実行
-# -------------------------
 if __name__ == "__main__":
-    model = GameModel()  # 敵5体
+    model = GameModel()
     vm = GameViewModel(model)
     GameView(vm)

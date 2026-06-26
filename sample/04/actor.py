@@ -1,9 +1,9 @@
 import pyxel as px
 from UI import *
 from module.actorstate import *
-from abc import ABC, abstractmethod
 from typing import List
-
+from observer import *
+from resource.mapresource import * 
 
 
 
@@ -19,38 +19,15 @@ class SPELL(IntEnum):
 
 
 
-# フィールド用障害物（kind = 0:ドア 1:宝箱 2:人）
-class Obstacle:
-    def __init__(self, x, y, z, kind=0, val=0):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.kind = kind
-        self.val = val
-
-    def draw(self, pl_x, pl_y, pl_z):
-        ox = self.x * 16 - pl_x
-        oy = self.y * 16 - pl_y
-        if abs(ox) < 64 and abs(oy) < 64 and abs(self.z == pl_z):
-            if self.kind == 0:
-                u, v = 2, 1
-            elif self.kind == 1:
-                u, v = 3, 1
-            else:
-                u, v = 2 + (px.frame_count % 30) // 15, 2
-            px.blt(56 + ox, 48 + oy, 0, u * 16, v * 16, 16, 16, 1)
 
 
-
-
-class ACTOR(Enum):
-    ISPLAYER = True
-    ISENEMY = False
 
 
 # 戦闘用キャラクタ（自分とモンスター）
-class Actor:
-    def __init__(self, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0):
+class Actor(Subject):
+    def __init__(self, parent, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0):
+        super().__init__()
+        self.party = parent
         self.name = name
         self.mhp = hp
         self.hp = hp
@@ -69,55 +46,120 @@ class Actor:
 
     def is_alive(self):
         return self.hp > 0
+    @property
+    def is_enemy(self):
+        return self.is_player
 
-    def is_fasterthan(self, char):
+    def is_attack_by_suprise(self, char):
+        return not self.is_fasterthan(char)
+
+    def is_faster_than(self, char):
         return True if self.spd * px.rndf(1.0, 2.0) >= char.spd * px.rndf(1.0, 2.0) else False
 
-    def is_able_cast(self, spl):
+    def has_remain_mp(self, spl):
         return True if self.mp >= spl.mp and px.rndi(0, 1) == 0 else False
 
+    # 攻撃
+    def battlelog_action_atk(self, target, msg_pre=[]):
+
+        def get_hit_rate(self, target):
+            hit_rate = max(min(self.spd / target.spd, 1.5), 0.25)
+            hit_rate = min(hit_rate - px.rndf(0.0, 1.0), 1.0)
+            return hit_rate
+
+        bt_msg = msg_pre + [f"{self.name}の こうげき"]
+
+        hit_rate = get_hit_rate(target)
+        if hit_rate > 0.0:
+            dmg = int(self.atk * (1 + hit_rate) / 2 + 0.99)
+            bt_msg += self.battlelog_take_damage(target, dmg)
+        else:  # 回避された
+            bt_msg += [f"{target.name}は みをかわした"]
+        return bt_msg
+
+    # ダメージ処理
+    def battlelog_take_dmg(self, target, dmg):
+        bt_msg = []
+        bt_msg += [f"{target.name}に {dmg}ダメージ"]
+        target.hp = max(target.hp - dmg, 0)
+        if not target.is_alive():
+            bt_msg += [f"{target.name}を たおした"]
+        return bt_msg
+
+    def battlelog_spell_effect(self, target, spl_id, cost=0):
+
+        def use_heal(self, mp):
+            hp = min(self.pl.hp + mp * 5, self.pl.mhp)
+            ret = hp - self.pl.hp
+            self.pl.hp += ret
+            return ret
+
+        if spl_id == SPELL.FIRE:
+            dmg = 0 if target.resist else px.rndi(24, 30)
+            bt_msg += self.battlelog_take_damage(target, dmg)
+        elif spl_id == SPELL.HEAL:
+            ret = use_heal(cost)
+            bt_msg += [f"{ret}HP かいふくした"]
+        elif spl_id == SPELL.BURST:
+            dmg = 0
+            for _ in range(cost):
+                dmg += px.rndi(8, 12)
+            bt_msg += self.battlelog_take_damage(target, dmg)
+        return bt_msg
 
 
-# --- Observer インターフェース ---
-class Observer(ABC):
-    @abstractmethod
-    def update(self, subject):
-        pass
 
-# --- Subject 基底クラス ---
-class Subject(ABC):
+    def status(self):
+        return [
+            f"HP {Meth.pad(self.hp,3)}/{Meth.pad(self.mhp,3)}",
+            f"MP  {Meth.pad(self.mp,2)}/ {Meth.pad(self.mmp,2)}",
+            f"ちから {Meth.pad(self.atk,2)}  はやさ {Meth.pad(self.spd,2)}",
+            f" {Meth.pad(self.gold,4)}G  カギ {Meth.pad(self.keys,2)}こ",
+        ]
+
+    def battle_status(self):
+        return [self.name, f"HP {Meth.pad(self.hp,3)}", f"MP  {Meth.pad(self.mp,2)}"]
+
+
+
+
+class Party():
     def __init__(self):
-        self._observers = []
+        self._member = []
 
-    def attach(self, observer):
-        if observer not in self._observers:
-            self._observers.append(observer)
+    def add_member(self, chr):
+        chr.attach(LogObserver())
+        self._member.append(chr)
 
-    def detach(self, observer):
-        if observer in self._observers:
-            self._observers.remove(observer)
+    def remove_member(self, idx):
+        try:
+            del self._member[idx]
+        except:
+            raise Exception("the specified member doesn't exist.：" + str(idx))
+    def clear_member(self):
+        self._member.clear()
+        
+    def get_alive_actors(self):
+        return [p for p in self._member if p.is_alive()]
 
-    def notify(self):
-        for observer in self._observers:
-            observer.update(self)
 
 
-# --- 具体的な Subject: プレイヤー ---
-class PartySubject(Subject):
+
+
+class PlayerParty(Party):
 
     def __init__(self):
         super().__init__()
-        self.players = [
-            Actor("あなた", 30, 6, 12, 12, ACTOR.ISPLAYER),
-        ]
-        self.pl = self.players[0]
+        self.add_member(Actor(self, "あなた", 30, 6, 12, 12, ACTOR.ISPLAYER))
+
+        self.pl = self._member[0]
         self.gold = 0
         self.keys = 0  # カギの数
         self.flags = []  # フラグ（宝箱、扉などの判定用）
         self.enc = 0  # エンカウント
         self.frames = 0
-
         self.action = ActorStates(self)
+
         self.get_start_location()
         (self.dx, self.dy, self.spd) = (0, 0, 4)
 
@@ -127,49 +169,27 @@ class PartySubject(Subject):
     def draw(self):
         self.action.draw()
 
-    def status(self):
-        return [
-            f"HP {pad(self.pl.hp,3)}/{pad(self.pl.mhp,3)}",
-            f"MP  {pad(self.pl.mp,2)}/ {pad(self.pl.mmp,2)}",
-            f"ちから {pad(self.pl.atk,2)}  はやさ {pad(self.pl.spd,2)}",
-            f" {pad(self.gold,4)}G  カギ {pad(self.keys,2)}こ",
-        ]
-
-    def battlestatus(self):
-        return [self.pl.name, f"HP {pad(self.pl.hp,3)}", f"MP  {pad(self.pl.mp,2)}"]
-
-    def get_alive_actors(self):
-        return [p for p in self.players if p.is_alive()]
-
     def get_positon(self):
         return (self.x + self.dx, self.y + self.dy)
 
     def get_current_floor(self):
         return self.z
 
+    def use_return(self):
+        if gbl.scene(): gbl.scene().Main()
+        (self.x, self.y, self.z) = (8, 21, 0)
+        # self.play_bgm(2)
 
     # 現在使える呪文
     def available_spells(self, on_battle=False):
         ret = [SPELL.FIRE]  # ファイアは最初から
         if not on_battle and "sp1" in self.flags:
-            ret.append(SPELL.CLOSE)
+            ret.append(SPELL.RETURN)
         if "sp2" in self.flags:
             ret.append(SPELL.HEAL)
         if "sp3" in self.flags:
             ret.append(SPELL.BURST)
         return ret
-
-    def use_heal(self, mp):
-        hp = min(self.pl.hp + mp * 5, self.pl.mhp)
-        ret = hp - self.pl.hp
-        self.pl.hp += ret
-        return ret
-
-    def use_return(self):
-        screen = gbl.get_screen()
-        if screen: screen.Main()
-        (self.x, self.y, self.z) = (8, 21, 0)
-        # self.play_bgm(2)
 
     def get_start_location(self):
         self.use_return()
@@ -178,48 +198,33 @@ class PartySubject(Subject):
         self.gold = min(self.gold + gold, 9999)
 
 
-    @property
-    def get_map_event(self):
-        x = self.x + self.dx
-        y = self.y + self.dy
 
-        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
-        if tm == (0, 2):
-            return "-"  # 壁
-        elif tm == (2, 2):
-            return "@"  # 泉
-        elif tm == (4, 0):
-            return "<"  # 上り階段
-        elif tm == (6, 0):
-            return ">"  # 下り階段
-        for key in get_resource().obstacles:
-            ob = get_resource().obstacles[key]
-            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
-                return key
-        return ""
 
     # 移動（１ステップ）開始
     def move_start(self):
         # self.notify()
 
         # 移動先のイベントを取得
-        evt = self.get_map_event
-
-        if not evt or evt in (">", "<"):  # 階段
+        evt = GameMap.get_map_event(self)
+        letter_up = GameMap.table[GameMap.TILE.UPSTAIR]["LETTER"]
+        letter_dwn = GameMap.table[GameMap.TILE.DOWNSTAIR]["LETTER"]
+        obs = (letter_up, letter_dwn)
+        if not evt or evt in obs: 
             self.dx *= self.spd
             self.dy *= self.spd
             self.moving = True
-            Window.close()  # ウィンドウが表示されていれば閉じる
+            Window.close()
             return
         
         self.dx, self.dy = (0, 0)
         if evt == "@":  # 泉
-            px.play(3, 32)
+            # px.play(3, 32)
             Window.message(["かいふくの いずみだ", "HP MP かいふく！"])
             self.pl.hp = self.pl.mhp
             self.pl.mp = self.pl.mmp
-        if evt in get_resource().obstacles:
-            ob = get_resource().obstacles[evt]
+
+        if evt in gbl.resource().obstacles:
+            ob = gbl.resource().obstacles[evt]
             # 扉
             if ob.kind == 0:
                 if self.keys:
@@ -241,7 +246,7 @@ class PartySubject(Subject):
                     self.keys += 1
                 Window.message(t)
                 self.flags.append(evt)
-                px.play(3, 35)
+                # px.play(3, 35)
             # NPC
             if evt == "0-1" and "4-3" in self.flags:
                 Window.message(["ぜひ Pyxelを", "マスターしてくれ"])
@@ -263,8 +268,8 @@ class PartySubject(Subject):
                 Window.message(["この ひほうが ほしいか？", " はい  いいえ"])
                 self.cur = Cursor("boss3", [1, 5], 14, 1)
             # 会話のみ
-            elif evt in get_resource().talks:
-                Window.message(get_resource().talks[evt])
+            elif evt in gbl.resource().talks:
+                Window.message(gbl.resource().talks[evt])
 
     # 移動（１ステップ）終了
     def move_end(self):
@@ -306,145 +311,16 @@ class PartySubject(Subject):
             # self.battle_start(ms_id)
             gbl.get_screen().Battle()
 
-    def get_enemy_race(self):
+
+    def get_enemy_random(self):
             return self.get_current_floor() - (1 if px.rndi(0, 3) < 3 else 0)
 
 
-
-# --- 具体的な Observer: Move ---
-class EventObserver(Observer):
-    def update(self, subject: Subject):
-        if isinstance(subject, PartySubject):
-            self.subject = subject
-            self.get_map_event()
-
-    @property
-    def get_map_event(self):
-        x = self.subject.x + self.subject.dx
-        y = self.subject.y + self.subject.dy
-
-        tm = px.tilemaps[self.z].pget(x * 2, y * 2)
-        if tm == (0, 2):
-            return "-"  # 壁
-        elif tm == (2, 2):
-            return "@"  # 泉
-        elif tm == (4, 0):
-            return "<"  # 上り階段
-        elif tm == (6, 0):
-            return ">"  # 下り階段
-        for key in get_resource().obstacles:
-            ob = get_resource().obstacles[key]
-            if not key in self.flags and (ob.x, ob.y, ob.z) == (x, y, self.z):
-                return key
-        return ""
-
-    def check_event(self):
-        pass
-
-
-
-# 呪文
-class Spell:
-    def __init__(self, name, mp, on_menu, desc):
-        self.name = name
-        self.mp = mp
-        self.on_menu = on_menu
-        self.desc = desc
-
-    def get_mp(self, pl):
-        # ヒールやバーストは消費MPが状況依存
-        if self.name == "ヒール":
-            return min(pl.mp, (pl.mhp - pl.hp + 4) // 5)
-        elif self.name == "バースト":
-            return pl.mp
-        return self.mp
+class EnemyParty(Party):
+    def __init__(self):
+        super().__init__()
 
 
 
 
-class Resources:
-    _instance = None
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(Resources, cls).__new__(cls)
-            # 障害物（ドア、宝箱、NPC）データ
-            cls._instance.obstacles = {
-                "0-1": Obstacle(8, 19, 0, 2),
-                "0-2": Obstacle(3, 19, 0, 2),
-                "0-3": Obstacle(8, 28, 0, 2),
-                "0-4": Obstacle(12, 19, 0, 2),
-                "0-5": Obstacle(12, 28, 0, 2),
-                "0-6": Obstacle(11, 16, 0, 1),
-                "0-7": Obstacle(11, 17, 0, 1, 100),
-                "0-8": Obstacle(4, 25, 0, 0),
-                "0-9": Obstacle(5, 27, 0, 2),
-                "1-1": Obstacle(4, 6, 1, 0),  # ドア1（直行）
-                "1-2": Obstacle(27, 3, 1, 2),
-                "1-3": Obstacle(7, 21, 1, 1, 50),
-                "1-4": Obstacle(8, 12, 1, 1, 6),
-                "1-5": Obstacle(12, 12, 1, 1, 110),
-                "1-6": Obstacle(16, 24, 1, 1, 80),
-                "1-7": Obstacle(24, 10, 1, 1),  # カギ1
-                "1-8": Obstacle(13, 8, 1, 0),  # ドア2（宝部屋）
-                "1-9": Obstacle(8, 7, 1, 1, 100),
-                "1-10": Obstacle(11, 7, 1, 1, 100),
-                "1-11": Obstacle(8, 9, 1, 1, 100),
-                "1-12": Obstacle(11, 9, 1, 1, 100),
-                "2-1": Obstacle(17, 10, 2, 1, 170),
-                "2-2": Obstacle(17, 20, 2, 1, 73),
-                "2-3": Obstacle(21, 10, 2, 1, 25),
-                "2-4": Obstacle(21, 20, 2, 1, 256),
-                "2-5": Obstacle(21, 4, 2, 2),
-                "2-6": Obstacle(28, 28, 2, 1),  # カギ2
-                "2-7": Obstacle(23, 4, 2, 0),  # ドア3（ヒール）
-                "3-1": Obstacle(6, 22, 3, 2),
-                "3-2": Obstacle(4, 6, 3, 0),  # ドア4（直行）
-                "3-3": Obstacle(24, 12, 3, 1),  # カギ3
-                "3-4": Obstacle(25, 12, 3, 1, 1000),
-                "3-5": Obstacle(4, 10, 3, 0),  # ドア5
-                "4-1": Obstacle(16, 11, 4, 1),  # カギ4
-                "4-2": Obstacle(18, 25, 4, 1),  # カギ5
-                "4-3": Obstacle(4, 27, 4, 2),
-            }
-            # 会話イベントデータ
-            cls._instance.talks = {
-                "0-1": ["ちか5かいに ねむる", "ひほうを さがしてまいれ"],
-                "0-2": ["いずみのみずを のむと", "HPとMPが かいふくするぞ"],
-                "0-4": ["XキーかBボタンで", "メニューを ひらけるぞ"],
-                "0-5": ["とびらを あけるには", "カギが ひつようだ"],
-                "0-9": ["このさきには", "モンスターが でるぜ"],
-                "1-2": ["おまえには もう", "おしえることは ないよ"],
-                "2-5": ["まいった！"],
-                "3-1": ["チクショウ！"],
-            }
-            # モンスターデータ
-            cls._instance.monsters = (
-                ["かぼちゃ", 12, 0, 6, 12, ACTOR.ISENEMY, 0, 0, 20],
-                ["こおに", 24, 0, 10, 13, ACTOR.ISENEMY, 0, 1, 40],
-                ["おにび", 32, 2, 14, 18, ACTOR.ISENEMY, 1, 2, 80],
-                ["ゆうれい", 40, 0, 17, 32, ACTOR.ISENEMY, 0, 3, 160],
-                ["にんじゃ", 64, 0, 34, 28, ACTOR.ISENEMY, 0, 4, 320],
-                ["まどうし", 120, 4, 8, 15, ACTOR.ISENEMY, 0, 5, 0],
-                ["だてんし", 200, 0, 20, 27, ACTOR.ISENEMY, 1, 6, 0],
-                ["めがみ", 400, 0, 99, 99, ACTOR.ISENEMY, 0, 7, 0],
-            )
-            # 呪文データ
-            cls._instance.spells = [
-                Spell(
-                    "ファイア", 2, False, ["ちいさな ひのたまを", "てきにぶつけて ダメージ"]
-                ),
-                Spell("リターン", 6, True, ["スタートいちに", "テレポートする"]),
-                Spell("ヒール", 0, True, ["HPを かいふく", "かいふくしたぶんMPをつかう"]),
-                Spell(
-                    "バースト",
-                    0,
-                    False,
-                    ["すべての まりょくを", "てきにぶつけて だいダメージ"],
-                ),
-            ]
-
-        return cls._instance
-
-def get_resource():
-    return Resources()
 

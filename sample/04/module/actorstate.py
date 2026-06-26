@@ -1,6 +1,6 @@
 import pyxel
 from enum import Enum, auto
-from module.basestate import *
+from basestate import *
 from UI import *
 import appconfig as gbl
 
@@ -53,14 +53,13 @@ class ActorState_Idle(BaseState):
         self.action = parent
     
     def update(self):
-        btn = get_btn_state()
-        pt = self.actor
+        btn = Meth.get_btn_state()
+        pl = self.actor
 
-        pt.dy = btn["d"] - btn["u"]
-        pt.dx = btn["r"] - btn["l"] if not pt.dy else 0
-        if pt.dy or pt.dx:
+        pl.dy = btn["d"] - btn["u"]
+        pl.dx = btn["r"] - btn["l"] if not pl.dy else 0
+        if pl.dy or pl.dx:
             self.action.Move()
-            self.actor.move_start()
         elif btn["a"]:
             Window.close()
         elif btn["b"]:  # メニュー呼び出し
@@ -76,6 +75,9 @@ class ActorState_Move(BaseState):
         self.actor = parent.parent
         self.action = parent
 
+    def enter(self):
+        self.actor.move_start()
+
     def update(self):
         pt = self.actor
 
@@ -84,11 +86,13 @@ class ActorState_Move(BaseState):
         # 移動終了
         if (pt.dy % 16, pt.dx % 16) == (0, 0):
             self.action.Idle()
-            self.actor.move_end()
-
 
     def draw(self):
         pass
+
+    def exit(self):
+        self.actor.move_end()
+
 
 
 class ActorState_Battle(BaseState):

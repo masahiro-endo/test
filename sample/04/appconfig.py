@@ -10,38 +10,31 @@ class Globals:
             # デフォルト設定の初期化
             # 循環参照防止のため、この時点では生成しない
             cls._instance.BDF = None
-            cls._instance.screen = None
+            cls._instance.scene = None
             cls._instance.map = None
             cls._instance.party = None
             cls._instance.cursor = None
+            cls._instance.resource = None
         return cls._instance
 
-def get_settings():
+
+def global_setting():
     return Globals()
-def get_screen():
-    return Globals().screen
-def get_map():
+
+def scene():
+    return Globals().scene
+
+def field_map():
     return Globals().map
-def get_party():
+
+def player_party():
     return Globals().party
 
+def current_cursor():
+    return Globals().cursor
 
-
-def singleton(cls):
-    instances = {}
-    def get_instance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    return get_instance
-
-@singleton
-class Logger:
-    def __init__(self):
-        self.logs = []
-    
-    def log(self, message):
-        self.logs.append(message)
+def resource():
+    return Globals().resource
 
 
 

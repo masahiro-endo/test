@@ -1,4 +1,3 @@
-from typing import overload
 
 import pyxel as px
 import copy
@@ -50,8 +49,9 @@ class Window:
         px.rect(x1 + 8, y1 + 8, x2 - x1 - 16, y2 - y1 - 16, 0)
         for pos, text in enumerate(self.texts):
             if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
-                draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
+                Meth.draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
 
+    # クラスメソッドは主に、コンストラクタと異なる引数を持つFactoryMethod用 
     @classmethod
     def open(cls, key, x1, y1, x2, y2, texts=[]):
         if key in cls.all:
@@ -62,24 +62,32 @@ class Window:
         return cls.all[key]
 
     @classmethod
-    def close(cls, disposeWith=None):
+    def close(cls):
         windows_copy = copy.deepcopy(cls.all)
         for key in windows_copy:
             del cls.all[key]
-        disposeWith = None
         return
 
-    @classmethod
-    def clear(cls, disposeWith=None):
-        Window.close(disposeWith)
+    @staticmethod
+    def clear():
+        Window.close()
 
     @classmethod
     def pop(cls, key):
         del cls.all[key]
 
-    @classmethod
-    def message(cls, msg):
+    @staticmethod
+    def message(msg):
         Window.open(WINDOW_KEY.MSG, 0, 10, 16, 16, msg)
+
+    @staticmethod
+    def battlemessage(bt_msg):
+        Window.open(WINDOW_KEY.BATTLESTS, 8, 0, 16, 8, gbl.player_party()._member[0].battle_status())
+        Window.open(WINDOW_KEY.BATTLEMSG, 0, 8, 16, 16, bt_msg)
+
+
+
+
 
 
 
@@ -133,6 +141,7 @@ class CURSOR_KEY(Enum):
 class Cursor:
 
     def __init__(self, key, list_x, y, cancel_pos=None):
+        gbl.cursor = self
         self.key = key
         self.list_x = list_x
         self.y = y
@@ -145,7 +154,7 @@ class Cursor:
         px.blt(x * 8, self.y * 8, 0, 32, 48, 8, 8)
 
     def update(self):
-        btn = get_btn_state()
+        btn = Meth.get_btn_state()
 
         if btn["r"] or btn["l"]:
             if self.moved:
@@ -162,76 +171,57 @@ class Cursor:
             return self.cancel_pos
         return None
 
+    def dispose(self):
+        gbl.cursor = None
+        del self
 
 
 
 
 
+class Meth:
+    # 全角化
+    @staticmethod
+    def zen(val):
+        h2z = str.maketrans(
+            " 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ /+-:*#()[]",
+            "　１２３４５６７８９０ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ　／＋－：＊＃（）［］",
+        )
+        return str(val).translate(h2z)
 
+    # テキスト描画
+    @staticmethod
+    def draw_text(x, y, t):
+        # global BDF
+        config = gbl.global_setting()
+        px.text(x * 8, y * 8 + 4, Meth.zen(t), 7, config.BDF)
 
+    # セーブファイル名
+    @staticmethod
+    def get_data_file():
+        return px.user_data_dir("shiromofu factory", "tinyDRPG") + "save.json"
 
-### ユーティリティ関数 ###
+    # ボタン取得
+    @staticmethod
+    def get_btn_state():
+        btn = {
+            "u": px.btn(px.KEY_UP) or px.btn(px.GAMEPAD1_BUTTON_DPAD_UP),
+            "d": px.btn(px.KEY_DOWN) or px.btn(px.GAMEPAD1_BUTTON_DPAD_DOWN),
+            "l": px.btn(px.KEY_LEFT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_LEFT),
+            "r": px.btn(px.KEY_RIGHT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_RIGHT),
+            "a": px.btnp(px.KEY_Z, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_A, 10, 2),
+            "b": px.btnp(px.KEY_X, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_B, 10, 2),
+        }
+        return btn
 
+    # パディング左よせ
+    @staticmethod
+    def spacing(val, length):
+        return Meth.zen(val).ljust(length)[-length:]
 
-# 全角化
-def zen(val):
-    h2z = str.maketrans(
-        " 1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ /+-:*#()[]",
-        "　１２３４５６７８９０ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ　／＋－：＊＃（）［］",
-    )
-    return str(val).translate(h2z)
+    # パディング右よせ
+    @staticmethod
+    def pad(val, length, fill=" "):
+        return Meth.zen(val).rjust(length, fill)[-length:]
 
-
-# テキスト描画
-def draw_text(x, y, t):
-    # global BDF
-    config = gbl.get_settings()
-    px.text(x * 8, y * 8 + 4, zen(t), 7, config.BDF)
-
-
-# セーブファイル名
-def get_data_file():
-    return px.user_data_dir("shiromofu factory", "tinyDRPG") + "save.json"
-
-
-# ボタン取得
-def get_btn_state():
-    btn = {
-        "u": px.btn(px.KEY_UP) or px.btn(px.GAMEPAD1_BUTTON_DPAD_UP),
-        "d": px.btn(px.KEY_DOWN) or px.btn(px.GAMEPAD1_BUTTON_DPAD_DOWN),
-        "l": px.btn(px.KEY_LEFT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_LEFT),
-        "r": px.btn(px.KEY_RIGHT) or px.btn(px.GAMEPAD1_BUTTON_DPAD_RIGHT),
-        "a": px.btnp(px.KEY_Z, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_A, 10, 2),
-        "b": px.btnp(px.KEY_X, 10, 2) or px.btnp(px.GAMEPAD1_BUTTON_B, 10, 2),
-    }
-    return btn
-
-
-# パディング左よせ
-def spacing(val, length):
-    return zen(val).ljust(length)[-length:]
-
-
-# パディング右よせ
-def pad(val, length, fill=" "):
-    return zen(val).rjust(length, fill)[-length:]
-
-
-
-# 起動画面ウィンドウ生成
-# def welcome_show():
-#     message_window([" New Cont Exit", " (Zキー or Aボタン)"])
-    
-#     self.cur = Cursor("welcome", [1, 5, 10], 12)
-#     # すでにデータがある場合、カーソル位置をContにあわせる
-#     # if self.load_data():
-#     #     self.cur.pos = 1
-#     # self.scene = "welcome"
-#     # self.play_bgm(1)
-
-
-# メッセージ
-# def message_window(msg):
-#     Window.open("msg", 0, 10, 16, 16, msg)
-#     # self.wait = True
 

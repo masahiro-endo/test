@@ -1,11 +1,13 @@
 import pyxel
 from enum import Enum, auto
-from module.basestate import *
+from basestate import *
 from UI import *
 from actor import *
 import appconfig as gbl
 
 
+
+pt = gbl.player_party
 
 
 
@@ -22,19 +24,15 @@ class MapStates(BaseContext):
 
     def update(self):
         self.currentState.update()
-
     def draw(self):
         self.currentState.draw()
 
     def Field(self):
         self.changeState(STATE.Field)
-
     def FieldMenu(self):
-        self.changeState(STATE.Menu)
-
+        self.changeState(STATE.FieldMenu)
     def FieldSpell(self):
-        self.changeState(STATE.Spell)
-
+        self.changeState(STATE.FieldSpell)
     def Shop(self):
         self.changeState(STATE.Shop)
 
@@ -56,18 +54,22 @@ class MapState_Field(BaseState):
         self.map = parent
         self.cursor = None
 
+    def enter(self):
+        self.pt = gbl.player_party()
+
     def update(self):
-        gbl.get_party().update()
+        self.pt.update()
 
     def draw(self):
-        pt = gbl.get_party()
+        pt = self.pt
 
         x, y = (pt.x * 16 + pt.dx, pt.y * 16 + pt.dy)
+        # bltm(x, y, tilemap, u, v, w, h, [colkey])
         px.bltm(8, 0, pt.z, x - 48, y - 48, 112, 112)
         # 障害物（NPC含む）
-        for key in get_resource().obstacles:
+        for key in gbl.resource().obstacles:
             if not key in pt.flags:
-                ob = get_resource().obstacles[key]
+                ob = gbl.resource().obstacles[key]
                 ob.draw(x, y, pt.z)
         # マスク
         px.blt(0, -8, 0, 64, 0, 64, 64, 1)
@@ -76,11 +78,12 @@ class MapState_Field(BaseState):
         px.blt(64, 56, 0, 64, 0, -64, -64, 1)
         # 主人公
         (u, v) = ((px.frame_count % 30) // 15 * 16, 2 * 16)
+        # blt(x, y, imgbank, u, v, w, h, [colkey])
         px.blt(56, 48, 0, u, v, 16, 16, 1)
         # ステータス表示
         px.rect(0, 112, 128, 16, 0)
-        t = f"HP{pad(pt.pl.hp,3)} MP{pad(pt.pl.mp,2)} {pad(pt.gold,4)}G"
-        draw_text(0, 14, t)
+        t = f"HP{Meth.pad(pt.member[0].hp,3)} MP{Meth.pad(pt.member[0].mp,2)} {Meth.pad(pt.gold,4)}G"
+        Meth.draw_text(0, 14, t)
 
 
 
@@ -90,15 +93,8 @@ class MapState_FieldMenu(BaseState):
         self.map = parent
         self.cursor = None
 
-    # メニュー用ウィンドウ生成
-    def showmenu(self):
-        pt = gbl.get_party()
-        Window.open(WINDOW_KEY.MENU, 0, 0, 16, 10, pt.status())
-        Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
-        self.cursor = Cursor(CURSOR_KEY.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
-
-
     def enter(self):
+        self.pt = gbl.player_party()
         self.showmenu()
 
     def update(self):
@@ -116,6 +112,14 @@ class MapState_FieldMenu(BaseState):
     def draw(self):
         pass
 
+    # メニュー用ウィンドウ生成
+    def showmenu(self):
+        pt = self.pt
+        Window.open(WINDOW_KEY.MENU, 0, 0, 16, 10, pt.status())
+        Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
+        self.cursor = Cursor(CURSOR_KEY.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
+
+
 
 
 class MapState_FieldSpell(BaseState):
@@ -130,17 +134,17 @@ class MapState_FieldSpell(BaseState):
 
         spells = pt.available_spells()
         pos = self.cursor.pos if self.cursor else 0
-        spl = get_resource().spells[spells[pos]]
+        spl = gbl.resource().spells[spells[pos]]
         t1 = f"げんざいのMP {pt.pl.mp}" if spl.on_menu else "ここでは つかえない"
         mp = spl.get_mp(pt.pl)
-        t2 = [f"{spacing(spl.name,4)}    MP {pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
+        t2 = [f"{Meth.spacing(spl.name,4)}    MP {Meth.pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
         Window.open(WINDOW_KEY.MENU_SPELLS, 0, 0, 16, 10, t2)
         t3 = " "
         list_x = []
         for spl_id in spells:
             list_x.append(len(t3))
             # 文字数省略のため最初の２文字だけ表示
-            t3 += get_resource().spells[spl_id].name[0:2] + " "
+            t3 += gbl.resource().spells[spl_id].name[0:2] + " "
         Window.message(["なにを つかいますか？", t3])
         self.cursor = Cursor(CURSOR_KEY.SPELLS, list_x, 14, SPELL_SEL.Cancel)
 
@@ -161,7 +165,7 @@ class MapState_FieldSpell(BaseState):
         else:
             pt = gbl.get_party()
             spl_id = pt.available_spells()[ret]
-            spl = get_resource().spells[spl_id]
+            spl = gbl.resource().spells[spl_id]
             mp = spl.get_mp(pt.pl)
             if mp and mp <= pt.pl.mp and spl.on_menu:
                 pt.pl.mp -= mp
@@ -199,7 +203,7 @@ class MapState_Shop(BaseState):
         else:
             t3 = "もう パワーアップできない"
         t4 = "# おかねが たりません" if cost > pt.gold else ""
-        t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {pad(pt.gold,4)}G)"]
+        t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {Meth.pad(pt.gold,4)}G)"]
         Window.open(WINDOW_KEY.SHOP, 0, 0, 16, 10, t)
 
 
@@ -210,24 +214,24 @@ class MapState_Shop(BaseState):
         cost = 0
         t2 = "---"
         if kind == SHOP_SEL.HP:
-            t1 = f"HP {pad(pt.pl.mhp,3)}"
+            t1 = f"HP {Meth.pad(pt.pl.mhp,3)}"
             if pt.pl.mhp < 255:
-                t2 = pad(pt.pl.mhp + 5, 3)
+                t2 = Meth.pad(pt.pl.mhp + 5, 3)
                 cost = pt.pl.mhp * 2
         elif kind == SHOP_SEL.MP:
-            t1 = f"MP  {pad(pt.pl.mmp,2)}"
+            t1 = f"MP  {Meth.pad(pt.pl.mmp,2)}"
             if pt.pl.mmp < 98:
-                t2 = pad(pt.pl.mmp + 2, 3)
+                t2 = Meth.pad(pt.pl.mmp + 2, 3)
                 cost = pt.pl.mmp * 5
         elif kind == SHOP_SEL.STR:
-            t1 = f"ちから {pad(pt.pl.atk,2)}"
+            t1 = f"ちから {Meth.pad(pt.pl.atk,2)}"
             if pt.pl.atk < 98:
                 t2 = pad(pt.pl.atk + 2, 3)
                 cost = pt.pl.atk * 5
         elif kind == SHOP_SEL.AGI:
-            t1 = f"はやさ {pad(pt.pl.spd,2)}"
+            t1 = f"はやさ {Meth.pad(pt.pl.spd,2)}"
             if pt.pl.spd < 98:
-                t2 = pad(pt.pl.spd + 2, 3)
+                t2 = Meth.pad(pt.pl.spd + 2, 3)
                 cost = pt.pl.spd * 5
         return t1, t2, cost
 
