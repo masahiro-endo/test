@@ -3,7 +3,8 @@ from UI import *
 from module.actorstate import *
 from typing import List
 from observer import *
-from resource.mapresource import * 
+from resource.mapevent import * 
+from resource.tileevent import * 
 
 
 
@@ -46,9 +47,6 @@ class Actor(Subject):
 
     def is_alive(self):
         return self.hp > 0
-    @property
-    def is_enemy(self):
-        return self.is_player
 
     def is_attack_by_suprise(self, char):
         return not self.is_fasterthan(char)
@@ -73,6 +71,8 @@ class Actor(Subject):
         if hit_rate > 0.0:
             dmg = int(self.atk * (1 + hit_rate) / 2 + 0.99)
             bt_msg += self.battlelog_take_dmg(target, dmg)
+            bt_msg += self.battlelog_action_res(target)
+
         else:  # 回避された
             bt_msg += [f"{target.name}は みをかわした"]
         return bt_msg
@@ -82,16 +82,23 @@ class Actor(Subject):
         bt_msg = []
         bt_msg += [f"{target.name}に {dmg}ダメージ"]
         target.hp = max(target.hp - dmg, 0)
+        return bt_msg
+
+    def battlelog_action_res(self, target):
+        bt_msg = []
         if not target.is_alive():
-            bt_msg += [f"{target.name}を たおした"]
+            if not target.is_player:
+                bt_msg += [f"{target.name}を たおした"]
+            else:
+                bt_msg += [f"{target.name}は たおれた"]
         return bt_msg
 
     def battlelog_spell_effect(self, target, spl_id, cost=0):
 
-        def use_heal(self, mp):
-            hp = min(self.pl.hp + mp * 5, self.pl.mhp)
-            ret = hp - self.pl.hp
-            self.pl.hp += ret
+        def use_heal(person, mp):
+            hp = min(person.hp + mp * 5, person.mhp)
+            ret = hp - person.hp
+            person.hp += ret
             return ret
 
         if spl_id == SPELL.FIRE:
@@ -135,7 +142,7 @@ class Party():
     
     def __setitem__(self, index, value):
         self._member[index] = value
-    
+    #in
     def __contains__(self, item):
         return item in self._member
     
@@ -185,9 +192,6 @@ class PlayerParty(Party):
     def draw(self):
         self.action.draw()
 
-    def get_positon(self):
-        return (self.x + self.dx, self.y + self.dy)
-
     def get_current_floor(self):
         return self.z
 
@@ -213,79 +217,47 @@ class PlayerParty(Party):
     def add_gold(self, gold):
         self.gold = min(self.gold + gold, 9999)
 
+    def pos_try_move(self):
+        x = self.x + self.dx
+        y = self.y + self.dy
+        return (x, y)
+
+    def pos_3d(self):
+        (x, y) = self.pos_try_move()
+        z = self.get_current_floor
+        return (x, y, z)
 
 
+    def try_move_forward(self):
+        # Tileの定義位置は、イメージバンクが関わるため、
+        # 座標にはz軸も必要
+        pos = self.pos_3d()
+        evt = MapTiles.get_obs_key(pos)
 
-    # 移動（１ステップ）開始
-    def move_start(self):
-        # self.notify()
+        if not evt or MapTiles.is_walkable(pos): 
+            self.move_step()
+        else:
+            self.fire_event_in_front()
 
-        # 移動先のイベントを取得
-        evt = GameMap.get_map_event(self)
-        letter_up = GameMap.table[GameMap.TILE.UPSTAIR]["LETTER"]
-        letter_dwn = GameMap.table[GameMap.TILE.DOWNSTAIR]["LETTER"]
-        obs = (letter_up, letter_dwn)
-        if not evt or evt in obs: 
-            self.dx *= self.spd
-            self.dy *= self.spd
-            self.moving = True
-            Window.close()
-            return
-        
+    # 移動（１マス）開始
+    def move_step(self):
+        self.dx *= self.spd
+        self.dy *= self.spd
+        self.moving = True
+        Window.close()
+
+    def fire_event_in_front(self):
         self.dx, self.dy = (0, 0)
-        if evt == "@":  # 泉
-            # px.play(3, 32)
-            Window.message(["かいふくの いずみだ", "HP MP かいふく！"])
-            self.pl.hp = self.pl.mhp
-            self.pl.mp = self.pl.mmp
+            
+        # 進行先タイルに紐づくイベントを発火 泉
+        pos = self.pos_3d()
+        MapTiles.exec_response_spring(pos=pos, pt=self)
 
-        if evt in gbl.resource().obstacles:
-            ob = gbl.resource().obstacles[evt]
-            # 扉
-            if ob.kind == 0:
-                if self.keys:
-                    px.play(3, 33)
-                    Window.message(["カギを あけた"])
-                    self.flags.append(evt)
-                    self.keys -= 1
-                    self.wait = True
-                else:
-                    Window.message(["カギを もっていない"])
-            # 宝箱
-            elif ob.kind == 1:
-                t = ["たからばこだ！"]
-                if ob.val:
-                    t.append(f"{ob.val}G てにいれた")
-                    self.add_gold(ob.val)
-                else:
-                    t.append(f"カギを てにいれた")
-                    self.keys += 1
-                Window.message(t)
-                self.flags.append(evt)
-                # px.play(3, 35)
-            # NPC
-            if evt == "0-1" and "4-3" in self.flags:
-                Window.message(["ぜひ Pyxelを", "マスターしてくれ"])
-            elif evt == "0-3":
-                gbl.get_screen().currentMap.Shop()
-                # Window.message(["パワーアップするかい？", " HP MP ちから はやさ"])
-                # self.cur = Cursor("shop", [1, 4, 7, 11], 14, -1)
-                # Window.shop_show()
-            elif evt == "1-2" and not "sp1" in self.flags:
-                Window.message(["リターンの じゅもんを", "さずけよう"])
-                self.flags.append("sp1")
-            elif evt == "2-5" and not "sp2" in self.flags:
-                Window.message(["じゅんびは よいか？", " はい  いいえ"])
-                self.cur = Cursor("boss1", [1, 5], 14, 1)
-            elif evt == "3-1" and not "sp3" in self.flags:
-                Window.message(["おれと たたかうのか？", " はい  いいえ"])
-                self.cur = Cursor("boss2", [1, 5], 14, 1)
-            elif evt == "4-3":
-                Window.message(["この ひほうが ほしいか？", " はい  いいえ"])
-                self.cur = Cursor("boss3", [1, 5], 14, 1)
-            # 会話のみ
-            elif evt in gbl.resource().talks:
-                Window.message(gbl.resource().talks[evt])
+        evt = MapResources.get_obs_key(self.pos_3d())
+        if evt in MapResources.obstacles and not evt in self.flags:
+            ob = MapResources.obstacles[evt]
+            ob.response(pt=self,evt=evt,ob=ob)
+
 
     # 移動（１ステップ）終了
     def move_end(self):
@@ -295,38 +267,29 @@ class PlayerParty(Party):
         self.dx = 0
         self.moving = False
 
-        evt = self.get_map_event
+        # 移動後のタイルに紐づくイベントを発火 階段
+        pos = self.pos_3d()
+        MapTiles.exec_response_stairs(pos=pos, pt=self)
 
-        if evt in ("<", ">"):  # 階段
-            self.z += 1 if evt == ">" else -1
-            # エンディング判定
-            if self.z == 0 and "4-3" in self.flags and not "end" in self.flags:
-                s = self.frames // 30
-                m = s // 60
-                s %= 60
-                Window.message(["ゲームクリア！", f"タイム：{m}ふん{s}びょう"])
-                self.flags.append("end")
-            else:
-                Window.message([f"ちか{self.z+1}かい"])
-            # self.field_bgm()
-            # px.play(3, 34)
-            self.wait = True
-            return
+        self.recovery_gradually()
+        
+        self.roll_encount()
+
+    def recovery_gradually(self):
         if (self.x + self.y) % 2 == 0:
             self.pl.hp = min(self.pl.hp + 1, self.pl.mhp)
+
+    def roll_encount(self):
         # 地下1階、ひほう取得〜エンディングは敵がでない
         if self.z == 0 or ("4-3" in self.flags and not "end" in self.flags):
             return
         self.enc += 1
-        self.roll_encount()
 
-    def roll_encount(self):
         if self.enc > 12 and px.rndi(0, 7) == 0:
             self.enc = 0
             # ms_id = self.get_enemy_race()
             # self.battle_start(ms_id)
             gbl.get_screen().Battle()
-
 
     def get_enemy_random(self):
             return self.get_current_floor() - (1 if px.rndi(0, 3) < 3 else 0)

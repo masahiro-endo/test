@@ -4,6 +4,7 @@ from basestate import *
 from UI import *
 from actor import *
 import appconfig as gbl
+from resource.mapevent import *
 
 
 
@@ -67,22 +68,28 @@ class MapState_Field(BaseState):
         # bltm(x, y, tilemap, u, v, w, h, [colkey])
         px.bltm(8, 0, pt.z, x - 48, y - 48, 112, 112)
         # 障害物（NPC含む）
-        for key in gbl.resource().obstacles:
+        for key in gbl.map_resource().obstacles:
             if not key in pt.flags:
-                ob = gbl.resource().obstacles[key]
+                ob = gbl.map_resource().obstacles[key]
                 ob.draw(x, y, pt.z)
+        
+        # イメージバンクimg(0-2) の (u, v) からサイズ (w, h) の領域を (x, y) にコピーする。
+        # w、hそれぞれに負の値を設定すると水平、垂直方向に反転する。
+        # colkeyに色を指定すると透明色として扱われる
         # マスク
-        px.blt(0, -8, 0, 64, 0, 64, 64, 1)
-        px.blt(64, -8, 0, 64, 0, -64, 64, 1)
-        px.blt(0, 56, 0, 64, 0, 64, -64, 1)
-        px.blt(64, 56, 0, 64, 0, -64, -64, 1)
+        (u, v) = (64, 0)
+        px.blt(0 , -8, 0, u, v,  64,  64, 1)
+        px.blt(64, -8, 0, u, v, -64,  64, 1)
+        px.blt(0 , 56, 0, u, v,  64, -64, 1)
+        px.blt(64, 56, 0, u, v, -64, -64, 1)
+        sz = TileEvents.TILE_SIZE
         # 主人公
-        (u, v) = ((px.frame_count % 30) // 15 * 16, 2 * 16)
+        (u, v) = ((px.frame_count % 30) // 15 * sz, 2 * sz)
         # blt(x, y, imgbank, u, v, w, h, [colkey])
-        px.blt(56, 48, 0, u, v, 16, 16, 1)
+        px.blt(56, 48, 0, u, v, sz, sz, 1)
         # ステータス表示
         px.rect(0, 112, 128, 16, 0)
-        t = f"HP{Meth.pad(pt._member[0].hp,3)} MP{Meth.pad(pt._member[0].mp,2)} {Meth.pad(pt.gold,4)}G"
+        t = f"HP{Meth.pad(pt[0].hp,3)} MP{Meth.pad(pt[0].mp,2)} {Meth.pad(pt.gold,4)}G"
         Meth.draw_text(0, 14, t)
 
 

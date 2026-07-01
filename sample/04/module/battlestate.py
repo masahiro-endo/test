@@ -66,26 +66,7 @@ class BattleState_Encount(BaseState):
         self.cursor = None
 
     def enter(self):
-        # pt = gbl.get_party()
-        # ms_id = pt.get_enemy_race()
-        # self.battle_encount(ms_id)
         pass
-
-    def battle_encount(self, ms_id, evt=None):
-        self.battle.bt_evt = evt
-
-        data = gbl.resource().monsters[ms_id]
-        self.battle.ms = Actor(*data)
-        bt_msg = [f"{self.battle.ms.name}が あらわれた"]
-
-        # 先制判定
-        if self.battle.pl.is_fasterthan(self.battle.ms):
-            self.statecommand.Command_wait()
-        else:
-            bt_msg += ["てきに せんてをとられた"]
-            self.battle.pushlog(bt_msg)
-
-            self.statecommand.BattleLog()
 
     def update(self):
         pass
@@ -232,17 +213,20 @@ class BattleState_Run(BaseState):
     # 逃げる
     def battle_run(self):
         bt_msg = []
-        rate = 1.0 + self.battle.pl.spd / self.battle.ms.spd
+
+        def get_run_rate(actr, target):
+            return 1.0 + actr.spd / target.spd
+
+        rate = get_run_rate(self.battle.pt[0],self.battle.mspt[0])
         if rate > px.rndf(0.0, 2.0):
-            bt_msg = ["にげのびた..."]
-            self.battle.scene.Main()
+            bt_msg += ["にげのびた..."]
+            gbl.scene().Main()
             Window.clear()
             Window.message(bt_msg)
-            self.battle.scene.Main()
         else:
-            bt_msg = ["にげられなかった"]
+            bt_msg += ["にげられなかった"]
             self.battle.pushlog(bt_msg)
-            self.battle.end_action()
+            self.battle.battle_enemy_action()
 
 
 class BattleState_BattleLog(BaseState):
@@ -287,7 +271,7 @@ class BattleState_Result(BaseState):
         if self.battle.is_win():
             self.battle_win()
         else:
-            self.battle.scene.GameOver()
+            gbl.scene().GameOver()
         
     def update(self):
         pass

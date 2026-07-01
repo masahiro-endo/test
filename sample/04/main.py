@@ -4,7 +4,7 @@ from UI import *
 from actor import *
 import appconfig as gbl
 from module.scenestate import *
-from resource.mapresource import *
+from resource.mapevent import *
 import os
 import sys
 os.chdir(os.path.dirname(__file__))
@@ -29,8 +29,8 @@ class GameViewModel:
 
         self.config = gbl.global_setting()
         self.config.party = PlayerParty()
-        self.config.resource = MapResources()
 
+        self.config.resource = MapResources()
         self.config.scene = SceneStates()
         self.scene = gbl.scene()
 
@@ -107,22 +107,10 @@ class GameView:
         for key in Window.all:
             Window.all[key].draw()
         
-        if gbl.current_cursor:
-            gbl.current_cursor.draw()
-
-
         # プレイヤー
         # コイン
         # 敵
         # スコア表示
-
-        # ウィンドウ
-        # for key in Window.all:
-        #     Window.all[key].draw()
-        # カーソル
-        # if self.cur:
-        #     self.cur.draw()
-
 
 
 

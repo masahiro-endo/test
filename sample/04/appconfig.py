@@ -33,8 +33,7 @@ def player_party():
 def current_cursor():
     return Globals().cursor
 
-def resource():
+def map_resource():
     return Globals().resource
-
 
 

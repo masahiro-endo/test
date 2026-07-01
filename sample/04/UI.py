@@ -51,6 +51,10 @@ class Window:
             if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
                 Meth.draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
 
+        if gbl.current_cursor:
+            gbl.current_cursor.draw()
+
+
     # クラスメソッドは主に、コンストラクタと異なる引数を持つFactoryMethod用 
     @classmethod
     def open(cls, key, x1, y1, x2, y2, texts=[]):

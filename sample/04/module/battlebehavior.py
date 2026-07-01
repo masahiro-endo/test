@@ -86,7 +86,7 @@ class BattleBehavior():
         heapq.heappush(self.turn_queue, (-first_actor.btl_spd, first_actor))
         heapq.heapify(self.turn_queue)
 
-        if not first_actor.is_enemy:
+        if not first_actor.is_player:
             bt_msg += ["てきに せんてをとられた"]
         return bt_msg
 
@@ -94,7 +94,7 @@ class BattleBehavior():
     def battle_encount(self, ms_id, evt=None):
         self.bt_evt = evt
 
-        data = gbl.resource().monsters[ms_id]
+        data = gbl.map_resource().monsters[ms_id]
         data[0:0] = [self.mspt]
         self.mspt.add_member(Actor(*data))
 
