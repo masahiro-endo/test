@@ -3,7 +3,7 @@ from enum import Enum, auto
 from basestate import *
 from UI import *
 import appconfig as gbl
-from resource.mapevent import *
+from resource.tileevent import *
 
 
 
@@ -76,7 +76,7 @@ class ActorState_Move(BaseState):
         self.action = parent
 
     def enter(self):
-        self.actor.move_start()
+        self.actor.try_move_forward()
 
     def update(self):
         pt = self.actor
@@ -84,7 +84,7 @@ class ActorState_Move(BaseState):
         pt.dy += pt.spd * ((pt.dy > 0) - (pt.dy < 0))
         pt.dx += pt.spd * ((pt.dx > 0) - (pt.dx < 0))
         # 移動終了
-        sz = GameMap.TILE_SIZE
+        sz = TILE_SIZE
         if (pt.dy % sz, pt.dx % sz) == (0, 0):
             self.action.Idle()
 

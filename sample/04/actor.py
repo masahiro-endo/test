@@ -224,7 +224,7 @@ class PlayerParty(Party):
 
     def pos_3d(self):
         (x, y) = self.pos_try_move()
-        z = self.get_current_floor
+        z = self.get_current_floor()
         return (x, y, z)
 
 
@@ -232,12 +232,12 @@ class PlayerParty(Party):
         # Tileの定義位置は、イメージバンクが関わるため、
         # 座標にはz軸も必要
         pos = self.pos_3d()
-        evt = MapTiles.get_obs_key(pos)
-
-        if not evt or MapTiles.is_walkable(pos): 
-            self.move_step()
-        else:
+        evt = MapMeth.get_obs_key(pos)
+        obj = MapTiles.is_defined(pos) and not MapTiles.is_walkable(pos)
+        if evt or obj: 
             self.fire_event_in_front()
+        else:
+            self.move_step()
 
     # 移動（１マス）開始
     def move_step(self):
@@ -247,16 +247,16 @@ class PlayerParty(Party):
         Window.close()
 
     def fire_event_in_front(self):
+        pos = self.pos_3d() # クリア前の座標を保持
         self.dx, self.dy = (0, 0)
             
         # 進行先タイルに紐づくイベントを発火 泉
-        pos = self.pos_3d()
-        MapTiles.exec_response_spring(pos=pos, pt=self)
+        MapTiles.exec_response_spring(**{'pos': pos, 'pt': self})
 
-        evt = MapResources.get_obs_key(self.pos_3d())
-        if evt in MapResources.obstacles and not evt in self.flags:
-            ob = MapResources.obstacles[evt]
-            ob.response(pt=self,evt=evt,ob=ob)
+        evt = MapMeth.get_obs_key(pos)
+        if evt in gbl.map_resource().obstacles.keys() and not evt in self.flags:
+            ob = gbl.map_resource().obstacles[evt]
+            ob.response(**{'pos': pos, 'pt': self, 'ob': ob})
 
 
     # 移動（１ステップ）終了
@@ -269,13 +269,12 @@ class PlayerParty(Party):
 
         # 移動後のタイルに紐づくイベントを発火 階段
         pos = self.pos_3d()
-        MapTiles.exec_response_stairs(pos=pos, pt=self)
+        MapTiles.exec_response_stairs(**{'pos': pos, 'pt': self})
 
-        self.recovery_gradually()
-        
+        self.recover_health_gradually()
         self.roll_encount()
 
-    def recovery_gradually(self):
+    def recover_health_gradually(self):
         if (self.x + self.y) % 2 == 0:
             self.pl.hp = min(self.pl.hp + 1, self.pl.mhp)
 

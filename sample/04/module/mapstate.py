@@ -82,7 +82,7 @@ class MapState_Field(BaseState):
         px.blt(64, -8, 0, u, v, -64,  64, 1)
         px.blt(0 , 56, 0, u, v,  64, -64, 1)
         px.blt(64, 56, 0, u, v, -64, -64, 1)
-        sz = TileEvents.TILE_SIZE
+        sz = TILE_SIZE
         # 主人公
         (u, v) = ((px.frame_count % 30) // 15 * sz, 2 * sz)
         # blt(x, y, imgbank, u, v, w, h, [colkey])

@@ -87,7 +87,7 @@ class GameViewModel:
 class GameView:
     def __init__(self, view_model: GameViewModel):
         self.vm = view_model
-        self.vm.scene.Battle()
+        self.vm.scene.Main()
 
         px.init(
             128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2
