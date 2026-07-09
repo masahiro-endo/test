@@ -2,9 +2,9 @@
 import pyxel as px
 from enum import Enum, Flag, IntEnum, auto
 import appconfig as gbl
-from UI import *
+from module.UI import *
 from resource.mapevent import *
-from functools import partial
+
 
 
 #システム上の、タイル基本サイズは 8x8
@@ -99,7 +99,7 @@ class MapTiles:
         return MapTiles.get_property(pos, 'EVENT')
 
     @staticmethod
-    def exec_response(*args, **kwargs):
+    def response(*args, **kwargs):
         pos = kwargs['pos']
         evt = MapTiles.get_event(pos)
         if evt:
@@ -110,16 +110,16 @@ class MapTiles:
             return True if key in pt.flags else False
 
     @staticmethod
-    def exec_response_spring(*args, **kwargs):
+    def response_spring(*args, **kwargs):
         pos = kwargs['pos']
         pt = kwargs['pt']
         mrk = MapTiles.get_symbol(pos)
 
         if mrk == MapTiles.table[TILE.SPRING]['SYMBOL']:
-            MapTiles.exec_response(*args, **kwargs)
+            MapTiles.response(*args, **kwargs)
 
     @staticmethod
-    def exec_response_stairs(**kwargs):
+    def response_stairs(*args, **kwargs):
         pos = kwargs['pos']
         pt = kwargs['pt']
 
@@ -128,6 +128,7 @@ class MapTiles:
         dwn = MapTiles.table[TILE.DOWNSTAIR]['SYMBOL']
 
         if mrk in (up,dwn):
-            partial(MapTiles.exec_response(**kwargs),evt=mrk)
+            kwargs['evt'] = mrk
+            MapTiles.response(*args, **kwargs)
 
 

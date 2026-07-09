@@ -1,8 +1,7 @@
-import pyxel
 from enum import Enum, auto
-from basestate import *
-from UI import *
 import appconfig as gbl
+from module.UI import *
+from module.state.basestate import *
 from resource.tileevent import *
 
 
@@ -53,17 +52,17 @@ class ActorState_Idle(BaseState):
         self.action = parent
     
     def update(self):
-        btn = Meth.get_btn_state()
+        push = Meth.get_btn_state()
         pl = self.actor
 
-        pl.dy = btn["d"] - btn["u"]
-        pl.dx = btn["r"] - btn["l"] if not pl.dy else 0
+        pl.dy = push[BTN.DWN] - push[BTN.UP]
+        pl.dx = push[BTN.RHT] - push[BTN.LFT] if not pl.dy else 0
         if pl.dy or pl.dx:
             self.action.Move()
-        elif btn["a"]:
+        elif push[BTN.A_Z]:
             Window.close()
-        elif btn["b"]:  # メニュー呼び出し
-            gbl.get_screen().context.currentState.map.Menu()
+        elif push[BTN.B_X]:  # メニュー呼び出し
+            gbl.current_scene().context.currentState.map.Menu()
             # pt.menu_show()
             # pt.scene = "menu"
 

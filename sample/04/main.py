@@ -1,10 +1,12 @@
 
 import pyxel as px
-from UI import *
-from actor import *
+
 import appconfig as gbl
-from module.scenestate import *
+from module.UI import *
+from module.actor import *
+from module.state.scenestate import *
 from resource.mapevent import *
+
 import os
 import sys
 os.chdir(os.path.dirname(__file__))
@@ -17,30 +19,31 @@ sys.path.append(os.path.dirname(__file__))
 
 
 
-class GameModel:
+class AppModel():
     def __init__(self):
         pass
 
 
 
-class GameViewModel:
-    def __init__(self, model: GameModel):
+class AppViewModel():
+    def __init__(self, model: AppModel):
         self.model = model
 
         self.config = gbl.global_setting()
+        self.config.resource = MapResources()
         self.config.party = PlayerParty()
 
-        self.config.resource = MapResources()
-        self.config.scene = SceneStates()
-        self.scene = gbl.scene()
+        self.config.scenestack = deque([SceneStates()])
+        self.scene = gbl.scene_state()
+        self.topscene = gbl.scene_stack()[0]
 
     def update(self):
-        self.scene.update()
+        self.topscene.update()
 
         # btn = get_btn_state()
 
         # # 十字キー押しっぱなし防止
-        # if self.wait and (btn["u"] or btn["d"] or btn["r"] or btn["l"]):
+        # if self.wait and (btn[BTN.UP] or btn[BTN.DWN] or btn[BTN.RHT] or btn[BTN.LFT]):
         #     return
         # self.wait = False
         # # カーソルがある場合カーソル処理を優先
@@ -48,9 +51,9 @@ class GameViewModel:
         #     cur = self.cur
         #     ret = cur.update(btn)
         #     # ショップの場合は左右キーを押したときにウィンドウを再表示
-        #     # if btn["r"] or btn["l"]:
+        #     # if btn[BTN.RHT] or btn[BTN.LFT]:
         #     #     if cur.key == "spells":
-        #     #         self.menu_spells()
+        #     #         self.MENU_SPL()
         #     #     elif cur.key == "shop":
         #     #         self.shop_show()
         #     #     elif cur.key == "bt_spells":
@@ -83,11 +86,10 @@ class GameViewModel:
         # View 用データ取得　関数定義
 
 
-
-class GameView:
-    def __init__(self, view_model: GameViewModel):
+class AppView:
+    def __init__(self, view_model: AppViewModel):
         self.vm = view_model
-        self.vm.scene.Main()
+        self.vm.scene.Demo()
 
         px.init(
             128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2
@@ -97,11 +99,12 @@ class GameView:
 
         px.run(self.update, self.draw)
 
+
     def update(self):
         self.vm.update()
 
     def draw(self):
-        px.cls(pyxel.COLOR_BLACK)
+        px.cls(px.COLOR_BLACK)
         self.vm.scene.draw()
 
         for key in Window.all:
@@ -115,6 +118,6 @@ class GameView:
 
 
 if __name__ == "__main__":
-    model = GameModel()
-    vm = GameViewModel(model)
-    GameView(vm)
+    model = AppModel()
+    vm = AppViewModel(model)
+    AppView(vm)

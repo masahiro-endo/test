@@ -1,9 +1,9 @@
 import pyxel
 from enum import Enum, auto
-from basestate import *
-from UI import *
-from actor import *
 import appconfig as gbl
+from module.state.basestate import *
+from module.UI import *
+from module.actor import *
 from resource.mapevent import *
 
 
@@ -69,6 +69,8 @@ class MapState_Field(BaseState):
         px.bltm(8, 0, pt.z, x - 48, y - 48, 112, 112)
         # 障害物（NPC含む）
         for key in gbl.map_resource().obstacles:
+            # 扉開放や宝箱取得時点でフラグを保持し、
+            # 以降は描画しない
             if not key in pt.flags:
                 ob = gbl.map_resource().obstacles[key]
                 ob.draw(x, y, pt.z)
@@ -101,31 +103,60 @@ class MapState_FieldMenu(BaseState):
         self.cursor = None
 
     def enter(self):
-        self.pt = gbl.player_party()
-        self.showmenu()
+        # self.pt = gbl.player_party()
+        # self.showmenu()
+        COMMAND_TREE = {
+            'セーブ'  : [None],
+            'じゅもん': {
+                "回復アイテム": [None],
+                "攻撃アイテム": [None],
+            },
+            'とじる'  : [px.quit],
+        },
+        super().__init__(COMMAND_TREE)
+
 
     def update(self):
-        ret = self.cursor.update()
+        super().update()
+        # ret = self.cursor.update()
 
-        if ret == MENU_SEL.Save:
-            # self.save_data()
-            Window.message(["セーブしました"])
-        elif ret == MENU_SEL.Spells:
-            self.map.Spell()
-        elif ret == MENU_SEL.Close:
-            Window.close()
-            self.map.Field()
+        # if ret == MENU_SEL.Save:
+        #     # self.save_data()
+        #     Window.message(["セーブしました"])
+        # elif ret == MENU_SEL.Spells:
+        #     self.map.Spell()
+        # elif ret == MENU_SEL.Close:
+        #     Window.close()
+        #     self.map.Field()
 
     def draw(self):
         pass
 
     # メニュー用ウィンドウ生成
     def showmenu(self):
-        pt = self.pt
-        Window.open(WINDOW_KEY.MENU, 0, 0, 16, 10, pt.status())
-        Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
-        self.cursor = Cursor(CURSOR_KEY.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
+        pt = gbl.player_party()
+        Window.open(WIN.MENU, 0, 0, 16, 10, pt.status())
+        Window.message([f"いま ちか{pt.z+1}かいに います"])
+        # Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
+        # self.cursor = Cursor(CSR.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
 
+    def update_sub_tree(self):
+        resrc = SkillResources().spells
+        sub_tree = {}
+        for i, name, mp, place, desc in resrc:
+            if SKL.FLD in place:
+                sub_tree[name] = Spell(*resrc[i])
+
+    
+    def learned_spells(self, on_battle=False):
+        ret = [SPELL.FIRE]  # ファイアは最初から
+        if not on_battle and "sp1" in self.flags:
+            ret.append(SPELL.RETURN)
+        if "sp2" in self.flags:
+            ret.append(SPELL.HEAL)
+        if "sp3" in self.flags:
+            ret.append(SPELL.BURST)
+        return ret
 
 
 
@@ -136,7 +167,7 @@ class MapState_FieldSpell(BaseState):
         self.cursor = None
 
     # メニュー用呪文リスト
-    def menu_spells(self):
+    def MENU_SPL(self):
         pt = gbl.get_party()
 
         spells = pt.available_spells()
@@ -145,7 +176,7 @@ class MapState_FieldSpell(BaseState):
         t1 = f"げんざいのMP {pt.pl.mp}" if spl.on_menu else "ここでは つかえない"
         mp = spl.get_mp(pt.pl)
         t2 = [f"{Meth.spacing(spl.name,4)}    MP {Meth.pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
-        Window.open(WINDOW_KEY.MENU_SPELLS, 0, 0, 16, 10, t2)
+        Window.open(WIN.MENU_SPL, 0, 0, 16, 10, t2)
         t3 = " "
         list_x = []
         for spl_id in spells:
@@ -153,10 +184,10 @@ class MapState_FieldSpell(BaseState):
             # 文字数省略のため最初の２文字だけ表示
             t3 += gbl.resource().spells[spl_id].name[0:2] + " "
         Window.message(["なにを つかいますか？", t3])
-        self.cursor = Cursor(CURSOR_KEY.SPELLS, list_x, 14, SPELL_SEL.Cancel)
+        self.cursor = Cursor(CSR.SPELLS, list_x, 14, SPELL_SEL.Cancel)
 
     def enter(self):
-        self.menu_spells()
+        self.MENU_SPL()
 
     def update(self):
         if self.cursor is None:
@@ -183,7 +214,7 @@ class MapState_FieldSpell(BaseState):
                     return
                 elif spl_id == SPELL.HEAL:
                     pt.use_heal(mp)
-                    self.menu_spells()        
+                    self.MENU_SPL()        
 
     def draw(self):
         pass
@@ -235,9 +266,9 @@ class MapState_Shop(BaseState):
     # ショップ用ウィンドウ生成
     def shop_show(self):
         Window.message(["レベルアップするかい？", " HP MP ちから はやさ"])
-        self.cursor = Cursor(CURSOR_KEY.SHOP, [1, 4, 7, 11], 14, SHOP_SEL.Cancel)
+        self.cursor = Cursor(CSR.SHOP, [1, 4, 7, 11], 14, SHOP_SEL.Cancel)
 
-        pt = gbl.get_party()
+        pt = gbl.player_party()
         t1, t2, cost = self.shop_get_item(self.cursor.pos)
         if cost:
             t3 = f"{cost}Gで レベルアップ"
@@ -245,7 +276,7 @@ class MapState_Shop(BaseState):
             t3 = "もう レベルアップできない"
         t4 = "# おかねが たりません" if cost > pt.gold else ""
         t = [f"{t1} → {t2}", t3, t4, f"  (げんざい {Meth.pad(pt.gold,4)}G)"]
-        Window.open(WINDOW_KEY.SHOP, 0, 0, 16, 10, t)
+        Window.open(WIN.SHOP, 0, 0, 16, 10, t)
 
 
     # ショップ用購入項目情報取得
@@ -277,3 +308,34 @@ class MapState_Shop(BaseState):
         return t1, t2, cost
 
 
+
+class MapState_FieldTalk(BaseState):
+    def __init__(self, parent):
+        self.state = STATE.FieldMenu
+        self.map = parent
+        self.cursor = None
+
+    def enter(self):
+        self.pt = gbl.player_party()
+        self.showmsg()
+
+    def update(self):
+        ret = self.cursor.update()
+
+        if ret == MENU_SEL.Save:
+            # self.save_data()
+            Window.message(["セーブしました"])
+        elif ret == MENU_SEL.Spells:
+            self.map.Spell()
+        elif ret == MENU_SEL.Close:
+            Window.close()
+            self.map.Field()
+
+    def draw(self):
+        pass
+
+    def showmsg(self):
+        pt = self.pt
+        Window.open(WIN.MENU, 0, 0, 16, 10, pt.status())
+        Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
+        self.cursor = Cursor(CSR.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)

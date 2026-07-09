@@ -1,9 +1,6 @@
 
 
 
-
-
-
 class BaseContext():
 
     table = {}

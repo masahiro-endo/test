@@ -1,9 +1,10 @@
-import pyxel
+
 from enum import Enum, auto
-from basestate import *
-from UI import *
+
 import appconfig as gbl
-from actor import *
+from module.UI import *
+from module.actor import *
+from module.state.basestate import *
 
 
 
@@ -81,14 +82,21 @@ class BattleState_Wait_Command(BaseState):
         self.statecommand = parent
         self.cursor = None
 
-    def enter(self):
-        self.battle_command()
-    
     def update(self):
         if self.cursor is None:
             return
 
+        mem = self.select_member()
+        if mem is None:
+            round_start()
+            return
+        self.battle_command(f"{mem}のこうどう")
+
+
         ret = self.cursor.update()
+        if ret is None:
+            return
+        
         if ret == BATTLE_SEL.Attack:
             self.cursor.dispose()
             self.statecommand.Attack()
@@ -96,12 +104,21 @@ class BattleState_Wait_Command(BaseState):
             self.statecommand.Spell()
         elif ret == BATTLE_SEL.Run:
             self.statecommand.Run()
+        
+        mem.action = ret
+
+
+    def select_member(self):
+        for mem in gbl.player_party():
+            if not mem.action:
+                return mem
+        return None
 
     def battle_command(self, msg_pre=[]):
         bt_msg = []
         bt_msg = msg_pre + ["どうする？", " たたかう じゅもん にげる"]
         y = 8 + len(bt_msg) * 2
-        self.cursor = Cursor(CURSOR_KEY.BATTLE_COMMAND, [1, 6, 11], y)
+        self.cursor = Cursor(CSR.BATTLE_COMMAND, [1, 6, 11], y)
         Window.battlemessage(bt_msg)
 
     def exit(self):
@@ -179,7 +196,7 @@ class BattleState_choice_Spell(BaseState):
         cost = list_mp[pos].mp
 
         bt_msg = ["なにを つかいますか？", t1, f" MP {Meth.pad(cost,2)}"]
-        self.cursor = Cursor(CURSOR_KEY.BATTLE_SPELLS, list_x, 12, SPELL_SEL.Cancel)
+        self.cursor = Cursor(CSR.BATTLE_SPELLS, list_x, 12, SPELL_SEL.Cancel)
         Window.battlemessage(bt_msg)
 
     def available_spells_cursor(self, pl):
@@ -220,7 +237,7 @@ class BattleState_Run(BaseState):
         rate = get_run_rate(self.battle.pt[0],self.battle.mspt[0])
         if rate > px.rndf(0.0, 2.0):
             bt_msg += ["にげのびた..."]
-            gbl.scene().Main()
+            gbl.current_scene().Main()
             Window.clear()
             Window.message(bt_msg)
         else:
@@ -240,9 +257,9 @@ class BattleState_BattleLog(BaseState):
         Window.battlemessage(self.battle.battlelog[0])
         
     def update(self):
-        btn = Meth.get_btn_state()
+        push = Meth.get_btn_state()
 
-        if btn["a"] or btn["b"]:
+        if push[BTN.A_Z] or push[BTN.B_X]:
             self.battle.poplog()
             if self.log_is_remain():
                 Window.battlemessage(self.battle.battlelog[0])
@@ -271,7 +288,7 @@ class BattleState_Result(BaseState):
         if self.battle.is_win():
             self.battle_win()
         else:
-            gbl.scene().GameOver()
+            gbl.current_scene().GameOver()
         
     def update(self):
         pass
@@ -299,7 +316,7 @@ class BattleState_Result(BaseState):
             pt.add_gold(gold)
             t += [f"{gold}G てにいれた"]
         
-        gbl.scene().Main()
+        gbl.current_scene().Main()
         Window.clear()
         Window.message(t)
 

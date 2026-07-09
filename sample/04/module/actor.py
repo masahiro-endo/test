@@ -1,8 +1,7 @@
 import pyxel as px
-from UI import *
-from module.actorstate import *
 from typing import List
-from observer import *
+from module.UI import *
+from module.state.actorstate import *
 from resource.mapevent import * 
 from resource.tileevent import * 
 
@@ -25,8 +24,8 @@ class SPELL(IntEnum):
 
 
 # 戦闘用キャラクタ（自分とモンスター）
-class Actor(Subject):
-    def __init__(self, parent, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0):
+class Character():
+    def __init__(self, parent, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0, skills=None):
         super().__init__()
         self.party = parent
         self.name = name
@@ -41,6 +40,10 @@ class Actor(Subject):
         self.resist = resist  # 呪文（ファイア）耐性
         self.img = img  # モンスターの場合の画像イメージ
         self.gold = gold  # 勝利時報酬
+        
+        self.action = None
+        self.status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
+        self.skills = skills if skills else []  # (スキル名, 関数)
 
     def __lt__(self, other):
         return self.btl_spd < other.btl_spd
@@ -59,6 +62,8 @@ class Actor(Subject):
 
     # 攻撃
     def battlelog_action_atk(self, target, msg_pre=[]):
+        # クリティカル判定（10%）
+        critical = px.rndf(0.0, 1.0) < 0.1
 
         def get_hit_rate(target):
             hit_rate = max(min(self.spd / target.spd, 1.5), 0.25)
@@ -115,7 +120,6 @@ class Actor(Subject):
         return bt_msg
 
 
-
     def status(self):
         return [
             f"HP {Meth.pad(self.hp,3)}/{Meth.pad(self.mhp,3)}",
@@ -126,6 +130,54 @@ class Actor(Subject):
 
     def battle_status(self):
         return [self.name, f"HP {Meth.pad(self.hp,3)}", f"MP  {Meth.pad(self.mp,2)}"]
+
+
+    def add_status(self, status_name, turns):
+        """状態異常を付与"""
+        self.status[status_name] = turns
+        print(f"⚠ {self.name} は {status_name} 状態になった！（{turns}ターン）")
+
+    def process_status(self):
+        """ターン開始時の状態異常処理"""
+        # 麻痺判定
+        if "paralyze" in self.status:
+            if random.random() < 0.5:  # 50%で行動不能
+                print(f"💥 {self.name} は麻痺で動けない！")
+                self.status["paralyze"] -= 1
+                if self.status["paralyze"] <= 0:
+                    del self.status["paralyze"]
+                return False  # 行動スキップ
+
+        return True
+
+    def end_turn_status(self):
+        """ターン終了時の状態異常処理"""
+        if "poison" in self.status:
+            dmg = max(1, self.max_hp // 10)
+            self.hp = max(0, self.hp - dmg)
+            print(f"☠ {self.name} は毒で {dmg} ダメージ！（残りHP: {self.hp}）")
+            self.status["poison"] -= 1
+            if self.status["poison"] <= 0:
+                del self.status["poison"]
+
+    def attack(self, target):
+        damage = random.randint(self.attack_power - 2, self.attack_power + 2)
+        target.hp = max(0, target.hp - damage)
+        print(f"{self.name} の攻撃！ {target.name} に {damage} ダメージ！")
+        return damage
+
+
+class Player(Character):
+    def __init__(self, parent, name, hp, mp, atk, spd, resist=0, img=None, gold=0, skills=None):
+        self.is_player = True
+        super().__init__(parent, name, hp, mp, atk, spd, self.is_player,resist, img, gold, skills)
+
+class Enemy(Character):
+    def __init__(self, parent, name, hp, mp, atk, spd, resist=0, img=None, gold=0, skills=None):
+        self.race = name
+        self.is_player = False
+        super().__init__(parent, name, hp, mp, atk, spd, self.is_player,resist, img, gold, skills)
+
 
 
 
@@ -150,7 +202,6 @@ class Party():
         return iter(self._member)
 
     def add_member(self, chr):
-        chr.attach(LogObserver())
         self._member.append(chr)
 
     def remove_member(self, idx):
@@ -173,13 +224,12 @@ class PlayerParty(Party):
 
     def __init__(self):
         super().__init__()
-        self.add_member(Actor(self, "あなた", 30, 6, 12, 12, ACTOR.ISPLAYER))
-
-        self.pl = self._member[0]
+        self.add_member(Player(self, "あなた", 30,  6, 12, 12))
+        self.add_member(Player(self, "メンバ", 15, 50,  5,  5))
         self.gold = 0
-        self.keys = 0  # カギの数
+        self.keys = 0    # カギの数
         self.flags = []  # フラグ（宝箱、扉などの判定用）
-        self.enc = 0  # エンカウント
+        self.enc = 0     # エンカウント
         self.frames = 0
         self.action = ActorStates(self)
 
@@ -196,7 +246,7 @@ class PlayerParty(Party):
         return self.z
 
     def use_return(self):
-        if gbl.scene(): gbl.scene().Main()
+        if gbl.scene_state(): gbl.scene_state().Main()
         (self.x, self.y, self.z) = (8, 21, 0)
         # self.play_bgm(2)
 
@@ -234,7 +284,9 @@ class PlayerParty(Party):
         pos = self.pos_3d()
         evt = MapMeth.get_obs_key(pos)
         obj = MapTiles.is_defined(pos) and not MapTiles.is_walkable(pos)
-        if evt or obj: 
+        # 扉開放や宝箱取得時点でフラグを保持し、
+        # 以降は通過を許す
+        if obj or (evt and not evt in self.flags): 
             self.fire_event_in_front()
         else:
             self.move_step()
@@ -247,16 +299,16 @@ class PlayerParty(Party):
         Window.close()
 
     def fire_event_in_front(self):
-        pos = self.pos_3d() # クリア前の座標を保持
+        pos = self.pos_3d() # 踏み出し直後の座標を保持
         self.dx, self.dy = (0, 0)
             
-        # 進行先タイルに紐づくイベントを発火 泉
-        MapTiles.exec_response_spring(**{'pos': pos, 'pt': self})
+        # 進行先タイルに紐づくイベント処理 泉
+        MapTiles.response_spring(**{'pos': pos, 'pt': self})
 
         evt = MapMeth.get_obs_key(pos)
-        if evt in gbl.map_resource().obstacles.keys() and not evt in self.flags:
+        if evt and not evt in self.flags:
             ob = gbl.map_resource().obstacles[evt]
-            ob.response(**{'pos': pos, 'pt': self, 'ob': ob})
+            ob.response(**{'evt': evt, 'pos': pos, 'pt': self, 'ob': ob })
 
 
     # 移動（１ステップ）終了
@@ -267,9 +319,9 @@ class PlayerParty(Party):
         self.dx = 0
         self.moving = False
 
-        # 移動後のタイルに紐づくイベントを発火 階段
+        # 移動後のタイルに紐づくイベント処理 階段
         pos = self.pos_3d()
-        MapTiles.exec_response_stairs(**{'pos': pos, 'pt': self})
+        MapTiles.response_stairs(**{'pos': pos, 'pt': self})
 
         self.recover_health_gradually()
         self.roll_encount()
@@ -288,17 +340,23 @@ class PlayerParty(Party):
             self.enc = 0
             # ms_id = self.get_enemy_race()
             # self.battle_start(ms_id)
-            gbl.get_screen().Battle()
+            gbl.current_scene().Battle()
 
     def get_enemy_random(self):
             return self.get_current_floor() - (1 if px.rndi(0, 3) < 3 else 0)
 
 
 class EnemyParty(Party):
+    
+    opt = ['A','B','C','D','E','F']
+
     def __init__(self):
         super().__init__()
 
-
-
-
+    def add_member(self, chr):
+        self._member.append(chr)
+        # 複数体の場合は、甲乙丙を付与
+        # 異種族混在は不可。Party を分けるか？
+        for i, mem in enumerate(self._member):
+            mem.name = mem.race + self.opt[i]
 

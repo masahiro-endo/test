@@ -1,11 +1,13 @@
 
-from UI import *
-import appconfig as gbl
-from actor import *
-from module.battlestate import *
 from collections import deque
 import heapq
 import random
+
+import appconfig as gbl
+from module.UI import *
+from module.actor import *
+from module.state.battlestate import *
+from resource.battleevent import *
 
 
 
@@ -96,7 +98,9 @@ class BattleBehavior():
 
         data = gbl.map_resource().monsters[ms_id]
         data[0:0] = [self.mspt]
-        self.mspt.add_member(Actor(*data))
+        self.mspt.add_member(Enemy(*data))
+        self.mspt.add_member(Enemy(*data))
+        self.mspt.add_member(Enemy(*data))
 
         self.selected_target = 0
         bt_msg = [f"{self.mspt._member[0].name}が あらわれた"]

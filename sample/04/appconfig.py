@@ -10,19 +10,23 @@ class Globals:
             # デフォルト設定の初期化
             # 循環参照防止のため、この時点では生成しない
             cls._instance.BDF = None
-            cls._instance.scene = None
+            cls._instance.scenestack = None
             cls._instance.map = None
             cls._instance.party = None
             cls._instance.cursor = None
             cls._instance.resource = None
+            cls._instance.contoldevice = None
         return cls._instance
 
 
 def global_setting():
     return Globals()
 
-def scene():
-    return Globals().scene
+def scene_stack():
+    return Globals().scenestack if Globals().scenestack else []
+
+def scene_state():
+    return Globals().scenestack[-1] if Globals().scenestack else None 
 
 def field_map():
     return Globals().map
@@ -36,4 +40,6 @@ def current_cursor():
 def map_resource():
     return Globals().resource
 
+def contol_device():
+    return Globals().contoldevice
 
