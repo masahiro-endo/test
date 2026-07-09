@@ -24,9 +24,9 @@ class OptionState(BaseState):
         push = Meth.get_btn_state()
 
         if push[BTN.LFT]:
-            self.sel_index = (self.sel_index - 1) % (len(self.command_stack[-1]) + 1)
+            self.sel_index = (self.sel_index - 1) % (len(self.command_stack[-1]) )
         elif push[BTN.RHT]:
-            self.sel_index = (self.sel_index + 1) % (len(self.command_stack[-1]) + 1)
+            self.sel_index = (self.sel_index + 1) % (len(self.command_stack[-1]) )
         elif push[BTN.A_Z]:
             self.handle_selection()
         elif push[BTN.B_X]:
@@ -47,9 +47,9 @@ class OptionState(BaseState):
             clr = px.COLOR_YELLOW if i == self.sel_index else px.COLOR_WHITE
             Meth.draw_text(1 + (slen + i), 14, cmd, clr)
             slen += len(cmd)
-        i += 1
 
         # # 最上位なら「終了」、分岐に入っていたら「戻る」
+        # i += 1
         # back_text = "終了" if len(self.command_stack) == 1 else "戻る"
         # clr = px.COLOR_YELLOW if self.sel_index == len(options) else px.COLOR_WHITE
         # Meth.draw_text(1 + (slen + i), 14, back_text, clr)

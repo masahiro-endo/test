@@ -89,7 +89,7 @@ class AppViewModel():
 class AppView:
     def __init__(self, view_model: AppViewModel):
         self.vm = view_model
-        self.vm.scene.Demo()
+        self.vm.scene.Main()
 
         px.init(
             128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2

@@ -1,14 +1,16 @@
-import pyxel
+
 from enum import Enum, auto
+
 import appconfig as gbl
-from module.state.basestate import *
 from module.UI import *
 from module.actor import *
+from module.state.basestate import *
+from module.state.optionstate import *
 from resource.mapevent import *
 
 
 
-pt = gbl.player_party
+
 
 
 
@@ -96,7 +98,7 @@ class MapState_Field(BaseState):
 
 
 
-class MapState_FieldMenu(BaseState):
+class MapState_FieldMenu(OptionState):
     def __init__(self, parent):
         self.state = STATE.FieldMenu
         self.map = parent
@@ -112,9 +114,13 @@ class MapState_FieldMenu(BaseState):
                 "攻撃アイテム": [None],
             },
             'とじる'  : [px.quit],
-        },
+        }
+        sub_tree = self.update_sub_tree()
+        COMMAND_TREE["じゅもん"] = sub_tree
         super().__init__(COMMAND_TREE)
 
+        self.showmenu()
+        gbl.current_cursor = self
 
     def update(self):
         super().update()
@@ -130,12 +136,12 @@ class MapState_FieldMenu(BaseState):
         #     self.map.Field()
 
     def draw(self):
-        pass
+        super().draw()
 
     # メニュー用ウィンドウ生成
     def showmenu(self):
         pt = gbl.player_party()
-        Window.open(WIN.MENU, 0, 0, 16, 10, pt.status())
+        Window.open(WIN.MENU, 0, 0, 16, 10, pt.field_status())
         Window.message([f"いま ちか{pt.z+1}かいに います"])
         # Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
         # self.cursor = Cursor(CSR.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
@@ -143,20 +149,11 @@ class MapState_FieldMenu(BaseState):
     def update_sub_tree(self):
         resrc = SkillResources().spells
         sub_tree = {}
-        for i, name, mp, place, desc in resrc:
+        for i, data in enumerate(resrc):
+            name, mp, place, desc = data
             if SKL.FLD in place:
-                sub_tree[name] = Spell(*resrc[i])
-
-    
-    def learned_spells(self, on_battle=False):
-        ret = [SPELL.FIRE]  # ファイアは最初から
-        if not on_battle and "sp1" in self.flags:
-            ret.append(SPELL.RETURN)
-        if "sp2" in self.flags:
-            ret.append(SPELL.HEAL)
-        if "sp3" in self.flags:
-            ret.append(SPELL.BURST)
-        return ret
+                sub_tree[name] = [Spell(*data)]
+        return sub_tree
 
 
 

@@ -42,7 +42,7 @@ class Character():
         self.gold = gold  # 勝利時報酬
         
         self.action = None
-        self.status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
+        self.bad_status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
         self.skills = skills if skills else []  # (スキル名, 関数)
 
     def __lt__(self, other):
@@ -118,18 +118,6 @@ class Character():
                 dmg += px.rndi(8, 12)
             bt_msg += self.battlelog_take_damage(target, dmg)
         return bt_msg
-
-
-    def status(self):
-        return [
-            f"HP {Meth.pad(self.hp,3)}/{Meth.pad(self.mhp,3)}",
-            f"MP  {Meth.pad(self.mp,2)}/ {Meth.pad(self.mmp,2)}",
-            f"ちから {Meth.pad(self.atk,2)}  はやさ {Meth.pad(self.spd,2)}",
-            f" {Meth.pad(self.gold,4)}G  カギ {Meth.pad(self.keys,2)}こ",
-        ]
-
-    def battle_status(self):
-        return [self.name, f"HP {Meth.pad(self.hp,3)}", f"MP  {Meth.pad(self.mp,2)}"]
 
 
     def add_status(self, status_name, turns):
@@ -344,6 +332,20 @@ class PlayerParty(Party):
 
     def get_enemy_random(self):
             return self.get_current_floor() - (1 if px.rndi(0, 3) < 3 else 0)
+
+
+    def field_status(self):
+        return [
+            f"HP {Meth.pad(self[0].hp,3)}/{Meth.pad(self[0].mhp,3)}",
+            f"MP  {Meth.pad(self[0].mp,2)}/ {Meth.pad(self[0].mmp,2)}",
+            f"ちから {Meth.pad(self[0].atk,2)}  はやさ {Meth.pad(self[0].spd,2)}",
+            f" {Meth.pad(self.gold,4)}G  カギ {Meth.pad(self.keys,2)}こ",
+        ]
+
+    def battle_status(self):
+        return [self.name, f"HP {Meth.pad(self.hp,3)}", f"MP  {Meth.pad(self.mp,2)}"]
+
+
 
 
 class EnemyParty(Party):

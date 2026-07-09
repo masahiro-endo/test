@@ -62,7 +62,7 @@ class ActorState_Idle(BaseState):
         elif push[BTN.A_Z]:
             Window.close()
         elif push[BTN.B_X]:  # メニュー呼び出し
-            gbl.current_scene().context.currentState.map.Menu()
+            gbl.scene_state().context.currentState.map.FieldMenu()
             # pt.menu_show()
             # pt.scene = "menu"
 

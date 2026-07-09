@@ -86,13 +86,13 @@ class SceneState_Demo(BaseState):
         self.draw_eyecatch()
 
     def draw_eyecatch(self):
-        if (pyxel.frame_count // 15) % 2 == 0:
+        if (px.frame_count // 15) % 2 == 0:
             self.color = px.COLOR_DARK_BLUE if self.color == px.COLOR_CYAN else px.COLOR_CYAN
         else:
             self.color = px.COLOR_CYAN
         Meth.draw_text(5, 5, "pyxel", self.color)
 
-        if pyxel.frame_count > (60 * self.sec):
+        if px.frame_count > (60 * self.sec):
             self.scene.Title()
 
 
@@ -124,9 +124,6 @@ class SceneState_Title(OptionState):
     def update(self):
         super().update()
                     
-    def draw(self):
-        super().draw()
-
     # def enter(self):
     #     Window.message([" New Cont Exit", " (push [Z] Key)"])
     #     self.cursor = Cursor(CSR.WELCOME, [1, 5, 10], TITLE_SEL.Cancel)

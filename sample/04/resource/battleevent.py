@@ -179,12 +179,12 @@ class SkillResources:
         if cls._instance is None:
             cls._instance = super(SkillResources, cls).__new__(cls)
             # 呪文データ
-            cls._instance.spells = [
+            cls._instance.spells = (
                 [ 'ファイア', 2, [SKL.BTL]         , ['ちいさな ひのたまを', 'てきにぶつけて ダメージ'] ],
                 [ 'リターン', 6, [SKL.FLD, SKL.BTL], ['スタートいちに', 'テレポートする'] ],
                 [ 'ヒール'  , 0, [SKL.FLD, SKL.BTL], ['HPを かいふく', 'かいふくしたぶんMPをつかう'] ],
                 [ 'バースト', 0, [SKL.BTL]         , ['すべての まりょくを', 'てきにぶつけて だいダメージ'] ],
-            ]
+            )
 
         return cls._instance
 
