@@ -6,7 +6,7 @@ from module.state.basestate import *
 from module.state.optionstate import *
 from module.state.mapstate import *
 from module.battlebehavior import *
-from resource.UIresourse import *
+
 
 
 
@@ -116,41 +116,19 @@ class SceneState_Title(OptionState):
             'Exit': [px.quit],
         }
 
-        # tree = CommandTree() 
-        # super().__init__(tree.commands[CSR.WELCOME])
         super().__init__(COMMAND_TREE)
 
 
     def update(self):
         super().update()
                     
-    # def enter(self):
-    #     Window.message([" New Cont Exit", " (push [Z] Key)"])
-    #     self.cursor = Cursor(CSR.WELCOME, [1, 5, 10], TITLE_SEL.Cancel)
-    #     pass
-
-    # def update(self):
-    #     if self.cursor is None:
-    #         return
-
-    #     ret = self.cursor.update()
-    #     if ret == TITLE_SEL.New:
-    #         self.scene.Main()
-    #     elif ret == TITLE_SEL.Continue:
-    #         # すでにセーブデータをロードしているので何もしない
-    #         pass
-    #     elif ret == TITLE_SEL.Exit:
-    #         px.quit()
-
     def draw(self):
         super().draw()
         Meth.draw_text(3, 2, "")
         Meth.draw_text(6, 4, "TEST")
 
-    # def exit(self):
-    #     if self.cursor:
-    #         self.cursor.dispose()
-    #     Window.close()
+    def exit(self):
+        Window.close()
 
 
 
@@ -214,11 +192,14 @@ class SceneState_GameOver(BaseState):
         pass
         
     def game_over(self):
-        self.pt.gold = pt.gold // 2
+        self.pt.gold = self.pt.gold // 2
         self.pt[0].hp = 1
 
         Window.clear()
-        Window.message([f"{pt.pl.name}は", "いしきを うしなった"])
+        Window.message([f"{self.pt[0].name}は", "いしきを うしなった"])
+
+
+
 
 
 

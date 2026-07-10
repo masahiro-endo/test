@@ -19,6 +19,7 @@ class OptionState(BaseState):
     def __init__(self, tree):
         self.command_stack = [tree]  # 階層をスタックで管理
         self.sel_index = 0
+        self.sel_value = None
 
     def update(self):
         push = Meth.get_btn_state()
@@ -33,9 +34,9 @@ class OptionState(BaseState):
             self.command_stack.pop()
             self.sel_index = 0
             
-        
     def draw(self):
         self.draw_commands()
+
 
     def draw_commands(self):
         current_tree = self.command_stack[-1]
@@ -48,11 +49,13 @@ class OptionState(BaseState):
             Meth.draw_text(1 + (slen + i), 14, cmd, clr)
             slen += len(cmd)
 
+
         # # 最上位なら「終了」、分岐に入っていたら「戻る」
         # i += 1
         # back_text = "終了" if len(self.command_stack) == 1 else "戻る"
         # clr = px.COLOR_YELLOW if self.sel_index == len(options) else px.COLOR_WHITE
         # Meth.draw_text(1 + (slen + i), 14, back_text, clr)
+
 
 
     def handle_selection(self):
@@ -74,5 +77,8 @@ class OptionState(BaseState):
                 self.sel_index = 0
             else:
                 # ()は実行に付与する。
-                sub_tree[0]()
-
+                args = len( list(sub_tree) )
+                if args == 1:
+                    sub_tree[0]()
+                else:
+                    sub_tree[0](**sub_tree[1])

@@ -316,7 +316,7 @@ class PlayerParty(Party):
 
     def recover_health_gradually(self):
         if (self.x + self.y) % 2 == 0:
-            self.pl.hp = min(self.pl.hp + 1, self.pl.mhp)
+            self[0].hp = min(self[0].hp + 1, self[0].mhp)
 
     def roll_encount(self):
         # 地下1階、ひほう取得〜エンディングは敵がでない

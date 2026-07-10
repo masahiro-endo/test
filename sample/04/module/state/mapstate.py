@@ -97,7 +97,7 @@ class MapState_Field(BaseState):
         Meth.draw_text(0, 14, t)
 
 
-
+# 選択肢機能を持つクラスは「親」が異なる
 class MapState_FieldMenu(OptionState):
     def __init__(self, parent):
         self.state = STATE.FieldMenu
@@ -105,116 +105,109 @@ class MapState_FieldMenu(OptionState):
         self.cursor = None
 
     def enter(self):
-        # self.pt = gbl.player_party()
-        # self.showmenu()
         COMMAND_TREE = {
-            'セーブ'  : [None],
-            'じゅもん': {
-                "回復アイテム": [None],
-                "攻撃アイテム": [None],
-            },
-            'とじる'  : [px.quit],
+            'セーブ'  : [self.cmd_Save],
+            'じゅもん': [self.map.FieldSpell],
+            'とじる'  : [self.cmd_Close],
         }
-        sub_tree = self.update_sub_tree()
-        COMMAND_TREE["じゅもん"] = sub_tree
+        # sub_tree = self.update_sub_tree()
+        # COMMAND_TREE["じゅもん"] = sub_tree
         super().__init__(COMMAND_TREE)
 
-        self.showmenu()
+        self.show_menu()
         gbl.current_cursor = self
 
     def update(self):
         super().update()
-        # ret = self.cursor.update()
-
-        # if ret == MENU_SEL.Save:
-        #     # self.save_data()
-        #     Window.message(["セーブしました"])
-        # elif ret == MENU_SEL.Spells:
-        #     self.map.Spell()
-        # elif ret == MENU_SEL.Close:
-        #     Window.close()
-        #     self.map.Field()
 
     def draw(self):
         super().draw()
 
-    # メニュー用ウィンドウ生成
-    def showmenu(self):
+
+    def cmd_Save(self):
+        Window.message(["セーブしました"])
+
+    def cmd_Close(self):
+        Window.close()
+        self.map.Field()
+
+    def show_menu(self):
         pt = gbl.player_party()
         Window.open(WIN.MENU, 0, 0, 16, 10, pt.field_status())
         Window.message([f"いま ちか{pt.z+1}かいに います"])
-        # Window.message([f"いま ちか{pt.z+1}かいに います", " セーブ じゅもん とじる"])
-        # self.cursor = Cursor(CSR.MENU, [1, 5, 10], 14, MENU_SEL.Cancel)
-
-    def update_sub_tree(self):
-        resrc = SkillResources().spells
-        sub_tree = {}
-        for i, data in enumerate(resrc):
-            name, mp, place, desc = data
-            if SKL.FLD in place:
-                sub_tree[name] = [Spell(*data)]
-        return sub_tree
 
 
 
-class MapState_FieldSpell(BaseState):
+# 選択肢機能を持つクラスは「親」が異なる
+class MapState_FieldSpell(OptionState):
     def __init__(self, parent):
         self.state = STATE.FieldSpell
         self.map = parent
-        self.cursor = None
-
-    # メニュー用呪文リスト
-    def MENU_SPL(self):
-        pt = gbl.get_party()
-
-        spells = pt.available_spells()
-        pos = self.cursor.pos if self.cursor else 0
-        spl = gbl.resource().spells[spells[pos]]
-        t1 = f"げんざいのMP {pt.pl.mp}" if spl.on_menu else "ここでは つかえない"
-        mp = spl.get_mp(pt.pl)
-        t2 = [f"{Meth.spacing(spl.name,4)}    MP {Meth.pad(mp,2)}", spl.desc[0], spl.desc[1], t1]
-        Window.open(WIN.MENU_SPL, 0, 0, 16, 10, t2)
-        t3 = " "
-        list_x = []
-        for spl_id in spells:
-            list_x.append(len(t3))
-            # 文字数省略のため最初の２文字だけ表示
-            t3 += gbl.resource().spells[spl_id].name[0:2] + " "
-        Window.message(["なにを つかいますか？", t3])
-        self.cursor = Cursor(CSR.SPELLS, list_x, 14, SPELL_SEL.Cancel)
 
     def enter(self):
-        self.MENU_SPL()
+        COMMAND_TREE = {
+            'とじる'  : [self.cmd_Close],
+        }
+        sub_tree = self.update_spell_tree()
+        sub_tree.update(**COMMAND_TREE)
+        super().__init__(sub_tree)
+
+        self.sub_tree = sub_tree
+        self.show_menu()
+        gbl.current_cursor = self
 
     def update(self):
-        if self.cursor is None:
-            return
+        super().update()
 
-        ret = self.cursor.update()
-        if ret is None:
-            return
-
-        if ret == SPELL_SEL.Cancel:
-            Window.close()
-            self.map.Field()
-        else:
-            pt = gbl.get_party()
-            spl_id = pt.available_spells()[ret]
-            spl = gbl.resource().spells[spl_id]
-            mp = spl.get_mp(pt.pl)
-            if mp and mp <= pt.pl.mp and spl.on_menu:
-                pt.pl.mp -= mp
-                if spl_id == SPELL.RETURN:
-                    Window.close(self.cursor)
-                    self.map.Field()
-                    pt.use_return()
-                    return
-                elif spl_id == SPELL.HEAL:
-                    pt.use_heal(mp)
-                    self.MENU_SPL()        
 
     def draw(self):
-        pass
+        super().draw()
+
+    def update_spell_tree(self):
+        resr = SkillResources().spells
+        sub_tree = {}
+        for i, data in enumerate(resr):
+            name, mp, place, desc = data
+            if SKL.FLD in place:
+                spl = Spell(*data)
+
+                sub_tree[name] = [self.cmd_action, {'spl': spl }] 
+        return sub_tree
+
+    def cmd_Close(self):
+        Window.close()
+        self.map.Field()
+
+    def cmd_action(self, *args, **kwargs):
+        spl = kwargs['spl']
+
+        if mp and mp <= pt.pl.mp and spl.on_menu:
+            pt.pl.mp -= mp
+            if spl_id == SPELL.RETURN:
+                Window.close(self.cursor)
+                self.map.Field()
+                pt.use_return()
+                return
+            elif spl_id == SPELL.HEAL:
+                pt.use_heal(mp)
+                self.MENU_SPL()        
+
+
+    def show_menu(self):
+        pt = gbl.player_party()
+        for key, data in self.sub_tree.items():
+            func, kmarg = data
+            spl = kmarg['spl']
+            break
+
+        t1 = f"げんざいのMP {pt[0].mp}" if SKL.FLD in spl.usable_place else "ここでは つかえない"
+        t2 = [f"{Meth.spacing(spl.name,4)}    MP {Meth.pad(spl.cost, 2)}", spl.desc[0], spl.desc[1], t1]
+        Window.open(WIN.MENU_SPL, 0, 0, 16, 10, t2)
+
+        Window.message(["なにを つかいますか？"])
+
+
+
 
 
 class MapState_Shop(BaseState):
