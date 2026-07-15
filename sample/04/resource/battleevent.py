@@ -8,6 +8,18 @@ from enum import Enum, Flag, IntEnum, auto
 
 
 
+
+class BattleMeth:
+
+    @staticmethod
+    def get_obs_key(pos3):
+        x, y, z = pos3
+        for key, ob in gbl.map_resource().obstacles.items():
+            if (ob.x, ob.y, ob.z) == (x, y, z):
+                return key
+        return ""
+
+
 class LogMeth:
 
     @staticmethod

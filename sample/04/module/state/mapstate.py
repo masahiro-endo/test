@@ -138,6 +138,13 @@ class MapState_FieldMenu(OptionState):
 
 
 
+
+class SelectObserver(Observer):
+    def update(self, subject):
+        if isinstance(subject, OptionState):
+            print(f"[Log] 選択肢が {subject.sel_index} に変更されました")
+            subject.show_menu()
+
 # 選択肢機能を持つクラスは「親」が異なる
 class MapState_FieldSpell(OptionState):
     def __init__(self, parent):
@@ -146,22 +153,24 @@ class MapState_FieldSpell(OptionState):
 
     def enter(self):
         COMMAND_TREE = {
-            'とじる'  : [self.cmd_Close],
+            'とじる'  : [self.cmd_Close, {'spl': None }],
         }
         sub_tree = self.update_spell_tree()
         sub_tree.update(**COMMAND_TREE)
         super().__init__(sub_tree)
+        self.attach(SelectObserver())
 
         self.sub_tree = sub_tree
         self.show_menu()
         gbl.current_cursor = self
 
+
     def update(self):
         super().update()
 
-
     def draw(self):
         super().draw()
+
 
     def update_spell_tree(self):
         resr = SkillResources().spells
@@ -171,34 +180,54 @@ class MapState_FieldSpell(OptionState):
             if SKL.FLD in place:
                 spl = Spell(*data)
 
-                sub_tree[name] = [self.cmd_action, {'spl': spl }] 
+                if 'リターン' in spl.name:
+                    action = [self.cmd_return, {'spl': spl }] 
+                elif 'ヒール' in spl.name:
+                    action = [self.cmd_heal, {'spl': spl }] 
+                else:
+                    action = [self.cmd_action, {'spl': spl }] 
+                sub_tree[name] = action
+
         return sub_tree
 
-    def cmd_Close(self):
+    def cmd_Close(self, *args, **kwargs):
         Window.close()
         self.map.Field()
 
+    def is_adequate(self, cost, max):
+        if cost <= max :
+            return True
+        return False
+
+    def cmd_return(self, *args, **kwargs):
+        spl = kwargs['spl']
+        pt = gbl.player_party()
+        mp = spl.mp
+        if self.is_adequate(spl.mp, pt[0].mp):
+            Window.close(self.cursor)
+            self.map.Field()
+            pt.use_return()
+
+    def cmd_heal(self, *args, **kwargs):
+        spl = kwargs['spl']
+        pt = gbl.player_party()
+        mp = spl.mp
+        if self.is_adequate(spl.mp, pt[0].mp):
+            pt.use_heal(mp)
+            self.show_menu()        
+
     def cmd_action(self, *args, **kwargs):
         spl = kwargs['spl']
-
-        if mp and mp <= pt.pl.mp and spl.on_menu:
-            pt.pl.mp -= mp
-            if spl_id == SPELL.RETURN:
-                Window.close(self.cursor)
-                self.map.Field()
-                pt.use_return()
-                return
-            elif spl_id == SPELL.HEAL:
-                pt.use_heal(mp)
-                self.MENU_SPL()        
+        key, val = self.sel_value
 
 
     def show_menu(self):
         pt = gbl.player_party()
-        for key, data in self.sub_tree.items():
-            func, kmarg = data
-            spl = kmarg['spl']
-            break
+        key, val = self.sel_value #tuple
+        func, kmarg = val # List
+        spl = kmarg['spl']
+        if not spl:
+            return
 
         t1 = f"げんざいのMP {pt[0].mp}" if SKL.FLD in spl.usable_place else "ここでは つかえない"
         t2 = [f"{Meth.spacing(spl.name,4)}    MP {Meth.pad(spl.cost, 2)}", spl.desc[0], spl.desc[1], t1]

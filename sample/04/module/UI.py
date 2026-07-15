@@ -56,8 +56,8 @@ class Window:
             if pos >= 0 and pos < (self.y2 - self.y1 - 2) // 2:
                 Meth.draw_text(self.x1 + 1, self.y1 + 1 + pos * 2, text)
 
-        if gbl.current_cursor:
-            gbl.current_cursor.draw()
+        if gbl.current_cursor():
+            gbl.current_cursor().draw()
 
 
     # クラスメソッドは主に、コンストラクタと異なる引数を持つFactoryMethod用 
@@ -91,7 +91,7 @@ class Window:
 
     @staticmethod
     def battlemessage(bt_msg):
-        Window.open(WIN.BTL_STS, 8, 0, 16, 8, gbl.player_party()._member[0].battle_status())
+        Window.open(WIN.BTL_STS, 8, 0, 16, 8, gbl.player_party().battle_status())
         Window.open(WIN.BTL_MSG, 0, 8, 16, 16, bt_msg)
 
 

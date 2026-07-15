@@ -3,7 +3,7 @@ import pyxel as px
 
 import appconfig as gbl
 from module.UI import *
-from module.actor import *
+from module.actorparty import *
 from module.state.scenestate import *
 from resource.mapevent import *
 
@@ -89,7 +89,7 @@ class AppViewModel():
 class AppView:
     def __init__(self, view_model: AppViewModel):
         self.vm = view_model
-        self.vm.scene.Main()
+        self.vm.scene.Test()
 
         px.init(
             128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2

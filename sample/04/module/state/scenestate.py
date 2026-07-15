@@ -2,10 +2,10 @@
 from enum import Enum, auto
 import appconfig as gbl
 from module.UI import Window
+from module.battlemanner import *
 from module.state.basestate import *
 from module.state.optionstate import *
 from module.state.mapstate import *
-from module.battlebehavior import *
 
 
 
@@ -57,7 +57,7 @@ class SceneStateContext(BaseContext):
             STATE.Main    : SceneState_Main(self),
             STATE.Battle  : SceneState_Battle(self),
             STATE.GameOver: SceneState_GameOver(self),
-            STATE.Test    : SceneState_Test(self),
+            STATE.Test    : SceneState_Test_Battle(self),
         }
         self.changeState(initState)
 
@@ -159,7 +159,7 @@ class SceneState_Battle(BaseState):
         self.scene = parent.parent
         self.cursor = None
 
-        self.logic = BattleBehavior(self)
+        # self.logic = BattleBehavior(self)
 
     def enter(self):
         self.logic.enter_action()
@@ -257,3 +257,19 @@ class SceneState_Test(OptionState):
     def draw(self):
         super().draw()
 
+
+
+
+
+class SceneState_Test_Battle(BaseState):
+
+    def __init__(self, parent):
+        self.state = STATE.Test
+        self.scene = parent.parent
+        self.manner = BattleManner(self)
+
+    def update(self):
+        self.manner.update()
+                    
+    def draw(self):
+        self.manner.draw()

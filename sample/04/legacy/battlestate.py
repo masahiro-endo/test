@@ -5,6 +5,7 @@ import appconfig as gbl
 from module.UI import *
 from module.actor import *
 from module.state.basestate import *
+from module.state.optionstate import *
 
 
 
@@ -20,9 +21,10 @@ class BattleStates(BaseContext):
             STATE.Run: BattleState_Run(self),
             STATE.BattleLog: BattleState_BattleLog(self),
             STATE.Result: BattleState_Result(self),
+            STATE.Test: BattleState_Test(self),
         }
         self.currentState = None
-        self.changeState(STATE.Encount)
+        self.changeState(STATE.Test)
 
     def update(self):
         self.currentState.update()
@@ -43,6 +45,8 @@ class BattleStates(BaseContext):
         self.changeState(STATE.BattleLog)
     def Result(self):
         self.changeState(STATE.Result)
+    def Test(self):
+        self.changeState(STATE.Test)
 
 
 
@@ -55,7 +59,7 @@ class STATE(Enum):
     Run = auto()
     BattleLog = auto()
     Result = auto()
-
+    Test = auto()
 
 
 
@@ -88,7 +92,6 @@ class BattleState_Wait_Command(BaseState):
 
         mem = self.select_member()
         if mem is None:
-            round_start()
             return
         self.battle_command(f"{mem}のこうどう")
 
@@ -254,7 +257,7 @@ class BattleState_BattleLog(BaseState):
         self.cursor = None
 
     def enter(self):
-        Window.battlemessage(self.battle.battlelog[0])
+        Window.battlemessage(self.battle.log[0])
         
     def update(self):
         push = Meth.get_btn_state()
@@ -262,7 +265,7 @@ class BattleState_BattleLog(BaseState):
         if push[BTN.A_Z] or push[BTN.B_X]:
             self.battle.poplog()
             if self.log_is_remain():
-                Window.battlemessage(self.battle.battlelog[0])
+                Window.battlemessage(self.battle.log[0])
             else:
                 if self.battle.is_win() or self.battle.is_lose():
                     self.statecommand.Result()
@@ -319,6 +322,44 @@ class BattleState_Result(BaseState):
         gbl.current_scene().Main()
         Window.clear()
         Window.message(t)
+
+
+
+
+
+
+class SelectObserver(Observer):
+    def update(self, subject):
+        if isinstance(subject, OptionState):
+            print(f"[Log] 選択肢が {subject.sel_index} に変更されました")
+            subject.show_menu()
+
+class BattleState_Test(OptionState):
+    def __init__(self, parent):
+        self.state = STATE.Test
+        self.battle = parent.parent
+        self.statecommand = parent
+        self.cursor = None
+
+    def enter(self):
+        actor = self.battle.pt[self.battle.current_actor_index]
+        resour = ActorResources()
+        COMMAND_TREE = resour.jobability[actor.job]
+
+        super().__init__(COMMAND_TREE)
+        self.attach(SelectObserver())
+
+        gbl.current_cursor = self
+
+    def update(self):
+        super().update()
+
+    def draw(self):
+        super().draw()
+
+
+    def show_message(self):
+        Window.message(["どうする？"])
 
 
 
