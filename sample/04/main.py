@@ -26,7 +26,7 @@ class AppModel():
 
 
 class AppViewModel():
-    def __init__(self, model: AppModel):
+    def __init__(self, model):
         self.model = model
 
         self.config = gbl.global_setting()
@@ -35,10 +35,10 @@ class AppViewModel():
 
         self.config.scenestack = deque([SceneStates()])
         self.scene = gbl.scene_state()
-        self.topscene = gbl.scene_stack()[0]
+        self.forefront = gbl.scene_stack()[0]
 
     def update(self):
-        self.topscene.update()
+        self.forefront.update()
 
         # btn = get_btn_state()
 
@@ -87,12 +87,12 @@ class AppViewModel():
 
 
 class AppView:
-    def __init__(self, view_model: AppViewModel):
+    def __init__(self, view_model):
         self.vm = view_model
         self.vm.scene.Test()
 
         px.init(
-            128, 128, title="Pyxel Sample RPG", quit_key=px.KEY_NONE, display_scale=2
+            128, 160, title="Pyxel Sample", quit_key=px.KEY_NONE, display_scale=2
         )
         px.load("assets.pyxres")
         vm.config.BDF = px.Font("k8x12S.bdf")

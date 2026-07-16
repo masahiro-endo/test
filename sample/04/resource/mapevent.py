@@ -255,7 +255,7 @@ class MapResources:
                 ['にんじゃ',  64, 0, 34, 28, 0, 4, 320, [("攻撃", SkillMeth.normal_attack), ("毒攻撃", SkillMeth.poison_attack)] ],
                 ['まどうし', 120, 4,  8, 15, 0, 5,   0, [("魔法", SkillMeth.normal_magic) ] ],
                 ['だてんし', 200, 0, 20, 27, 1, 6,   0, [("氷魔法", SkillMeth.ice_magic)  ] ],
-                ['めがみ'  , 400, 0, 99, 99, 0, 7,   0, [("全体魔法", SkillMeth.AOE_magic)] ],
+                ['めがみ'  , 400, 0, 99, 99, 0, 7,   0, [("全体魔法", SkillMeth.aoe)] ],
             )
 
         return cls._instance

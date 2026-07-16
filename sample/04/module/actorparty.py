@@ -59,8 +59,18 @@ class PlayerParty(Party):
 
     def __init__(self):
         super().__init__()
-        self.add_member(Player(self, "あなた", 30,  6, 12, 12, JOB.WARRIOR))
-        self.add_member(Player(self, "メンバ", 15, 50,  5,  5, JOB.PRIEST))
+        mem = Player(self, "あなた", 30,  6, 12, 12, JOB.WARRIOR)
+        mem.skills = [("攻撃", SkillMeth.normal_attack), ("毒攻撃", SkillMeth.poison_attack)]
+        self.add_member(mem)
+ 
+        mem = Player(self, "そうりょ", 15, 50, 5, 10, JOB.PRIEST)
+        mem.skills = [("攻撃", SkillMeth.normal_attack), ("回復", SkillMeth.heal)]
+        self.add_member(mem)
+ 
+        mem = Player(self, "にんじゃ", 20, 5, 8, 15, JOB.NINJA)
+        mem.skills = [("麻痺攻撃", SkillMeth.paralyze_attack), ("全体攻撃", SkillMeth.aoe)]
+        self.add_member(mem)
+
         self.gold = 0
         self.keys = 0    # カギの数
         self.flags = []  # フラグ（宝箱、扉などの判定用）
@@ -85,17 +95,6 @@ class PlayerParty(Party):
         if gbl.scene_state(): gbl.scene_state().Main()
         (self.x, self.y, self.z) = (8, 21, 0)
         # self.play_bgm(2)
-
-    # 現在使える呪文
-    def available_spells(self, on_battle=False):
-        ret = [SPELL.FIRE]  # ファイアは最初から
-        if not on_battle and "sp1" in self.flags:
-            ret.append(SPELL.RETURN)
-        if "sp2" in self.flags:
-            ret.append(SPELL.HEAL)
-        if "sp3" in self.flags:
-            ret.append(SPELL.BURST)
-        return ret
 
     def get_start_location(self):
         self.use_return()
@@ -139,7 +138,7 @@ class PlayerParty(Party):
         self.dx, self.dy = (0, 0)
             
         # 進行先タイルに紐づくイベント処理 泉
-        MapTiles.response_spring(**{'pos': pos, 'pt': self})
+        MapTiles.sensor_spring(**{'pos': pos, 'pt': self})
 
         evt = MapMeth.get_obs_key(pos)
         if evt and not evt in self.flags:
@@ -157,7 +156,7 @@ class PlayerParty(Party):
 
         # 移動後のタイルに紐づくイベント処理 階段
         pos = self.pos_3d()
-        MapTiles.response_stairs(**{'pos': pos, 'pt': self})
+        MapTiles.sensor_stairs(**{'pos': pos, 'pt': self})
 
         self.recover_health_gradually()
         self.roll_encount()

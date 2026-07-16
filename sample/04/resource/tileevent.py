@@ -110,7 +110,7 @@ class MapTiles:
             return True if key in pt.flags else False
 
     @staticmethod
-    def response_spring(*args, **kwargs):
+    def sensor_spring(*args, **kwargs):
         pos = kwargs['pos']
         pt = kwargs['pt']
         mrk = MapTiles.get_symbol(pos)
@@ -119,7 +119,7 @@ class MapTiles:
             MapTiles.response(*args, **kwargs)
 
     @staticmethod
-    def response_stairs(*args, **kwargs):
+    def sensor_stairs(*args, **kwargs):
         pos = kwargs['pos']
         pt = kwargs['pt']
 

@@ -9,8 +9,9 @@ from module.actorvm import *
 
 class JOB(Enum):
     WARRIOR = 'warrior'
-    MAGE = 'mage'
-    PRIEST = 'priest'
+    MAGE    = 'mage'
+    PRIEST  = 'priest'
+    NINJA   = 'ninja'
 
 
 
@@ -35,9 +36,10 @@ class Character():
         self.img = img  
         self.gold = gold 
         
+        self.status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
         self.action = None
         self.target = None
-        self.personal_skills = skills if skills else []  # (スキル名, 関数)
+        self.skills = skills if skills else []  # (スキル名, 関数)
         self.vm = ActorViewModel(self)
 
     def __lt__(self, other):
@@ -46,12 +48,6 @@ class Character():
 
     def is_alive(self):
         return self.hp > 0
-
-    def attack(self, target):
-        return self.vm.normal_attack(self, target)
-
-# 主だった関数は
-# actorvm.py で定義
 
 
 
@@ -62,8 +58,6 @@ class Player(Character):
     def __init__(self, parent, name, hp, mp, atk, spd, job):
         self.is_player = True
         self.job = job
-        self.bad_status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
-        # self.job_ability = {} # 職業固有の先頭コマンド →　JOB に紐づけ
         super().__init__(parent, name, hp, mp, atk, spd, self.is_player)
 
 class Enemy(Character):
@@ -71,6 +65,7 @@ class Enemy(Character):
         self.race = name
         self.is_player = False
         super().__init__(parent, name, hp, mp, atk, spd, self.is_player,resist, img, gold, skills)
+
 
 
 

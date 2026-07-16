@@ -2,6 +2,7 @@
 import random
 from enum import Enum, Flag, IntEnum, auto
 
+from module.actorparty import *
 
 
 
@@ -9,56 +10,65 @@ from enum import Enum, Flag, IntEnum, auto
 
 
 
-class BattleMeth:
-
-    @staticmethod
-    def get_obs_key(pos3):
-        x, y, z = pos3
-        for key, ob in gbl.map_resource().obstacles.items():
-            if (ob.x, ob.y, ob.z) == (x, y, z):
-                return key
-        return ""
 
 
-class LogMeth:
-
-    @staticmethod
-    def get_obs_key(pos3):
-        x, y, z = pos3
-        for key, ob in gbl.map_resource().obstacles.items():
-            if (ob.x, ob.y, ob.z) == (x, y, z):
-                return key
-        return ""
 
 class SkillMeth:
 
     @staticmethod
-    def normal_attack(user, target, battle):
-        user.attack(target)
+    def choice_single(target):
+        if isinstance(target, Party):
+            targets = [p for p in target if p.is_alive()]
+            if targets:
+                return random.choice(targets)
+        return target
 
     @staticmethod
-    def poison_attack(user, target, battle):
-        dmg = user.attack(target)
+    def normal_attack(user, target):
+        log  = []
+        target = SkillMeth.choice_single(target)
+        log += user.vm.attack(target)
+        return log
+
+    @staticmethod
+    def poison_attack(user, target):
+        log  = []
+        target = SkillMeth.choice_single(target)
+        log += user.vm.attack(target)
         if target.is_alive() and random.random() < 0.5:
-            target.add_status("poison", 3)
+            log += target.vm.add_status("poison", 3)
+        return log
 
     @staticmethod
-    def paralyze_attack(user, target, battle):
-        dmg = user.attack(target)
+    def paralyze_attack(user, target):
+        log  = []
+        target = SkillMeth.choice_single(target)
+        log += user.vm.attack(target)
         if target.is_alive() and random.random() < 0.4:
-            target.add_status("paralyze", 2)
+            log += target.vm.add_status("paralyze", 3)
+        return log
 
     @staticmethod
-    def heal(user, target, battle):
-        heal_amount = random.randint(8, 15)
-        target.hp = min(target.max_hp, target.hp + heal_amount)
-        print(f"✨ {user.name} は {target.name} を {heal_amount} 回復した！")
+    def heal(user, target):
+        log  = []
+        amount = random.randint(8, 15)
+        target.hp = min(target.mhp, target.hp + amount)
+        log += [f"{user.name} は 回復を唱えた！"]
+        log += [f"{target.name} は {amount} 回復した！"]
+        return log
+
+    @staticmethod
+    def aoe(user, target):
+        log  = []
+        log += [f"{user.name} の全体攻撃！"]
+        for target in target.party:
+            if target.is_alive():
+                log += user.vm.attack(target)
+
 
     def normal_magic(user, target, battle):
         pass
     def ice_magic(user, target, battle):
-        pass
-    def AOE_magic(user, target, battle):
         pass
 
 

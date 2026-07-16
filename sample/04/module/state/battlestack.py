@@ -74,13 +74,12 @@ class BattleStack_Action(OptionState):
         self.enter()
 
     def enter(self):
-        resour = ActorResources()
-        COMMAND_TREE = resour.jobability[self.actor.job]
-
-        super().__init__(COMMAND_TREE)
+        COMMAND_TREE = {
+        }
+        sub_tree = self.update_sub_tree()
+        sub_tree.update(**COMMAND_TREE)
+        super().__init__(sub_tree)
         self.attach(SelectObserver())
-
-        gbl.current_cursor = self
 
     def update(self):
         super().update()
@@ -91,12 +90,26 @@ class BattleStack_Action(OptionState):
         bt_msg = [f"{self.actor.name}'の こうどう？"]
         self.show_message(bt_msg)
 
+
+    def update_sub_tree(self):
+        sub_tree = {}
+        
+        for i, skls in enumerate(self.actor.skills):
+            skl_name, skl_func = skls
+            sub_tree[skl_name] = [None, skls]
+
+        # ヒールなどの「味方」側なら、
+        # 選択肢を味方名を切り替え
+        # actor.action.headto
+
+        return sub_tree
+
     def handle_input_phase(self):
         push = Meth.get_btn_state()
 
         if push[BTN.A_Z] or push[BTN.B_X]:
-            self.actor.action = self.sel_value
-            self.battle.action.popleft() # 自身をpop()する
+            self.actor.action = self.sel_value[1][1]
+            self.battle.comand.popleft() # 自身をpop()する
 
 
 
@@ -146,7 +159,7 @@ class BattleStack_Target(OptionState):
 
         if push[BTN.A_Z] or push[BTN.B_X]:
             self.actor.target = self.sel_value[1][1]
-            self.battle.action.popleft() # 自身をpop()する
+            self.battle.comand.popleft() # 自身をpop()する
 
 
 
@@ -182,7 +195,7 @@ class BattleStack_Confirm(OptionState):
         push = Meth.get_btn_state()
 
         if push[BTN.A_Z] or push[BTN.B_X]:
-            self.battle.action.popleft() # 自身をpop()する
+            self.battle.comand.popleft() # 自身をpop()する
 
 
 
