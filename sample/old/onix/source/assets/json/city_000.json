@@ -1,0 +1,59 @@
+{
+    "init":{
+        "command":"judgeFlg",
+        "args":{
+            "flgNo":0,
+            "on":"end",
+            "off":"section1_1"
+        }
+    },
+
+    "section1_1":{
+        "command":"loadPicture",
+        "args":{
+            "fileName":"guard.png",
+            "next":"section1_2"
+        }
+    },
+
+    "section1_2":{
+        "command":"setFlg",
+        "args":{
+            "flgNo":0,
+            "value":1,
+            "next":"section1_3"
+        }
+    },
+
+    "section1_3":{
+        "command":"printMessage",
+        "args":{
+            "message":[
+                ["M", ["KI", "MI", "TA", "TI", "KA", "D", " ", "MO", "NN", "WO", "KU", "KU", "D", "RI", " ", "MA", "TI", "NI", "HA", "I", "RU", "TO"]],
+                ["M", ["MO", "NN", "HA", "D", "NN", "KA", "D", " ", "TA", "TI", "HA", "TA", "D", "KA", "LTU", "TA", "."]],
+                ["M", [""]],
+                ["M", [""]],
+                ["M", [""]],
+                ["M", ["MA", "TA", " ", "*ONYX", "NO", "u", "wa", "sa", "WO", " ", "KI", "KI", "TU", "KE", "TE", "KI", "TA"], "pyxel.COLOR_YELLOW"],
+                ["M", ["HO", "D", "U", "KE", "NN", "SI", "LYA", "KA", "."], "pyxel.COLOR_YELLOW"],
+                ["M", ["KO", "KO", "HA", " ", "u", "tu", "ro", ",", "NO", "RO", "WA", "RE", "TA", " ", "MA", "TI", "TA", "D", "."], "pyxel.COLOR_YELLOW"],
+                ["M", ["TO", "D", "U", "SE", " ", "MI", "TU", "KA", "RU", "WA", "KE", "KA", "D", "NA", "I", ",", "A", "KI", "RA", "ME", "RU", "NN", "TA", "D", "NA", "."], "pyxel.COLOR_YELLOW"],
+                ["M", [""]],
+                ["M", ["MA", "TI", "HA", "SU", "D", "RE", "NI", "A", "RU", " ", "KU", "RO", "I", "TO", "U", "NI", "HA"], "pyxel.COLOR_YELLOW"],
+                ["M", ["TO", "D", "KO", "KA", "RA", "MO", " ", "HA", "I", "RE", "NA", "I", "."], "pyxel.COLOR_YELLOW"],
+                ["M", ["u", "so", "TA", "D", "TO", "O", "MO", "U", "NA", "RA", ",", "I", "LTU", "TE", "MI", "RU", "TO", "I", "I", "."], "pyxel.COLOR_YELLOW"],
+                ["M", [""]],
+                ["M", [""]],
+                ["M", ["NA", "RA", "SU", "D", "MO", "NO", "MO", " ", "O", "O", "I", "."], "pyxel.COLOR_YELLOW"],
+                ["M", ["SE", "I", "SE", "D", "I", " ", "SI", "NA", "NA", "I", "YO", "U", "NI", " ","KI", "WO", "TU", "KE", "RU", "NN", "TA", "D", "NA", "."], "pyxel.COLOR_YELLOW"],
+                ["M", ["SO", "U", "HI", "D", "HA", " ", "TO", "TO", "NO", "E", "TE", "O", "KE", "."], "pyxel.COLOR_YELLOW"]
+            ],
+            "next":"end"
+        }
+    },
+
+    "end":{
+        "command":"end",
+        "args":{}
+    }
+}

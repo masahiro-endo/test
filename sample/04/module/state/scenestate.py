@@ -86,15 +86,16 @@ class SceneState_Demo(BaseState):
         self.draw_eyecatch()
 
     def draw_eyecatch(self):
-        if (px.frame_count // 15) % 2 == 0:
-            self.color = px.COLOR_DARK_BLUE if self.color == px.COLOR_CYAN else px.COLOR_CYAN
-        else:
-            self.color = px.COLOR_CYAN
-        Meth.draw_text(5, 5, "pyxel", self.color)
+        Meth.draw_text(5, 5, "pyxel", self.blink_color())
 
         if px.frame_count > (60 * self.sec):
             self.scene.Title()
 
+    def blink_color(self):
+        if (px.frame_count // 15) % 2 == 0:
+            return px.COLOR_DARK_BLUE if self.color == px.COLOR_CYAN else px.COLOR_CYAN
+        else:
+            return px.COLOR_CYAN
 
 
 
@@ -217,7 +218,17 @@ class SceneState_Pause(BaseState):
                 sprite = gbl.scenes.popleft()
                 del sprite # self
 
+    def draw(self):
+        self.draw_pause()
 
+    def draw_pause(self):
+        Meth.draw_text(5, 5, "pyxel", self.blink_color())
+
+    def blink_color(self):
+        if (px.frame_count // 30) % 2 == 0:
+            return px.COLOR_DARK_BLUE if self.color == px.COLOR_CYAN else px.COLOR_CYAN
+        else:
+            return px.COLOR_CYAN
 
 
 

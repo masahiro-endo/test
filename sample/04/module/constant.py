@@ -12,6 +12,7 @@ class BTN(IntEnum):
     RHT = auto()
     A_Z = auto()
     B_X = auto()
+    SEL = auto()
 
 
 

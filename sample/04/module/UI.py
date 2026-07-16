@@ -223,6 +223,7 @@ class Meth:
             BTN.RHT: px.btnp(px.KEY_RIGHT, hold=15, repeat=3) or px.btn(px.GAMEPAD1_BUTTON_DPAD_RIGHT),
             BTN.A_Z: px.btnp(px.KEY_Z    , hold=15, repeat=3) or px.btnp(px.GAMEPAD1_BUTTON_A, 10, 2),
             BTN.B_X: px.btnp(px.KEY_X    , hold=15, repeat=3) or px.btnp(px.GAMEPAD1_BUTTON_B, 10, 2),
+            BTN.SEL: px.btnp(px.KEY_SPACE, hold=15, repeat=3) or px.btnp(px.GAMEPAD1_BUTTON_START),
         }
         return btn
 
