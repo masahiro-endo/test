@@ -12,7 +12,7 @@ from module.state.actorstate import *
 
 
 
-class Party():
+class BaseParty():
     def __init__(self):
         self._member = []
 
@@ -35,6 +35,11 @@ class Party():
     def __add__(self, other):
         return self._member + other._member
     
+    def __getattr__(self, name):
+        if name == 'type':
+            return self._member
+        raise AttributeError
+
 
     def add_member(self, chr):
         self._member.append(chr)
@@ -55,7 +60,7 @@ class Party():
 
 
 
-class PlayerParty(Party):
+class PlayerParty(BaseParty):
 
     def __init__(self):
         super().__init__()
@@ -63,9 +68,9 @@ class PlayerParty(Party):
         mem.skills = [("攻撃", SkillMeth.normal_attack), ("毒攻撃", SkillMeth.poison_attack)]
         self.add_member(mem)
  
-        mem = Player(self, "そうりょ", 15, 50, 5, 10, JOB.PRIEST)
-        mem.skills = [("攻撃", SkillMeth.normal_attack), ("回復", SkillMeth.heal)]
-        self.add_member(mem)
+        # mem = Player(self, "そうりょ", 15, 50, 5, 10, JOB.PRIEST)
+        # mem.skills = [("攻撃", SkillMeth.normal_attack), ("回復", SkillMeth.heal)]
+        # self.add_member(mem)
  
         mem = Player(self, "にんじゃ", 20, 5, 8, 15, JOB.NINJA)
         mem.skills = [("麻痺攻撃", SkillMeth.paralyze_attack), ("全体攻撃", SkillMeth.aoe)]
@@ -195,7 +200,7 @@ class PlayerParty(Party):
 
 
 
-class EnemyParty(Party):
+class EnemyParty(BaseParty):
     
     opt = ['A','B','C','D','E','F']
 

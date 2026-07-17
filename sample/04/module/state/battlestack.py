@@ -10,17 +10,22 @@ from module.state.optionstate import *
 
 
 
-class PhASE(Enum):
-    IMPUT = auto()
+class PHASE(Enum):
+    INPUT = auto()
     TARGET = auto()
+    CONFIRM = auto()
     EXECUTE = auto()
 
 
 
+class Singleton(object):
+    def __new__(cls, *args, **kargs):
+        if not hasattr(cls, "_instance"):
+            cls._instance = super(Singleton, cls).__new__(cls)
+        return cls._instance
+    
 
-
-
-class BattleStack_Log(BaseState):
+class BattleStack_Log(BaseState, Singleton):
     def __init__(self, parent):
         self.battle = parent
         self.log = deque()
@@ -31,7 +36,8 @@ class BattleStack_Log(BaseState):
         if push[BTN.A_Z] or push[BTN.B_X]:
             self.log.popleft()
             if not self.is_remain():
-                self.battle.action.popleft()
+                # 自身をスタックから除外する
+                self.battle.comand.popleft()
 
     def draw(self):
         super().draw()
@@ -68,7 +74,7 @@ class SelectObserver(Observer):
 
 class BattleStack_Action(OptionState):
     def __init__(self, parent, actor):
-        self.state = PhASE.IMPUT
+        self.state = PHASE.INPUT
         self.battle = parent
         self.actor = actor
         self.enter()
@@ -115,7 +121,7 @@ class BattleStack_Action(OptionState):
 
 class BattleStack_Target(OptionState):
     def __init__(self, parent, actor):
-        self.state = PhASE.TARGET
+        self.state = PHASE.TARGET
         self.battle = parent
         self.actor = actor
         self.enter()
@@ -166,14 +172,14 @@ class BattleStack_Target(OptionState):
 
 class BattleStack_Confirm(OptionState):
     def __init__(self, parent):
-        self.state = PhASE.IMPUT
+        self.state = PHASE.CONFIRM
         self.battle = parent
         self.enter()
 
     def enter(self):
         COMMAND_TREE = {
             'はい'  : [self.battle.handle_execute_phase],
-            'いいえ': [self.battle.stack_wait_actions],
+            'いいえ': [self.battle.stack_wait_commands],
         }
 
         super().__init__(COMMAND_TREE)

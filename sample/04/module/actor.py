@@ -45,6 +45,10 @@ class Character():
     def __lt__(self, other):
         return self.btl_spd < other.btl_spd
 
+    def __getattr__(self, name):
+        if name == 'type':
+            return self
+        raise AttributeError
 
     def is_alive(self):
         return self.hp > 0

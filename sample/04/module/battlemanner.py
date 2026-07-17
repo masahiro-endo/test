@@ -18,18 +18,14 @@ from resource.battleevent import *
 
 
 class BattleManner(BaseState):
+
     def __init__(self, parent):
         self.scene = parent
         self.pt = gbl.player_party()
         self.mspt = None
 
-        self.phase = PhASE.IMPUT
-        self.current_actor_index = 0
-        self.selected_target_index = 0
-
-        # self.turn_orderで順番の処理は、
-        # 割り込み処理に対応できないため、
-        # 可読性は下がるがキューを用いる。
+        # 不意打ち等の、
+        # 割り込み処理に対応するためキューを用いる。
         self.comand = deque([])
         self.action = deque([])
         self.btllog = BattleStack_Log(self)
@@ -37,10 +33,9 @@ class BattleManner(BaseState):
 
     def enter(self):
         self.enemy_spotted()
-        self.stack_wait_actions()
+        self.stack_wait_commands()
 
     def stack_wait_commands(self):
-        # actor = self.pt[self.current_actor_index]
         # 事前に、人数分を積んでおく
         for i, actor in enumerate(self.pt):
             self.comand.append(BattleStack_Action(self, actor))
@@ -58,19 +53,21 @@ class BattleManner(BaseState):
         self.mspt.add_member(Enemy(*data))
         self.mspt.add_member(Enemy(*data))
 
-        self.selected_target = 0
         bt_msg = [f"{self.mspt.race}が あらわれた"]
         self.btllog.push(bt_msg)
         self.stack_btllog()
 
     def stack_btllog(self):
-        self.action.appendleft(self.btllog)
+        if len(self.comand) > 0:
+            if isinstance(self.comand[0], BattleStack_Log):
+                return
+        self.comand.appendleft(self.btllog)
 
     def update(self):
-        self.action[0].update()
+        self.comand[0].update()
 
     def draw(self):
-        self.action[0].draw()
+        self.comand[0].draw()
 
         # バトル用draw処理（モンスターグラフィック表示）
         if not self.mspt:
@@ -88,6 +85,21 @@ class BattleManner(BaseState):
         else:
             self.action.append((func, args))
 
+    def all_chars(self):
+        return [c for c in self.pt + self.mspt if c.is_alive()]
+
+    def build_turn_order(self):
+        self.action.clear()
+        # 生存キャラを素早さ降順で並べる
+        turn_order = sorted(self.all_chars(), key=lambda c: c.btl_spd, reverse=True)
+
+        for actor in turn_order:
+            if actor.is_alive():
+                skl_name, skl_func = actor.action
+                target = actor.target
+                self.push_action(skl_func, actor, target)
+
+
     def ai_enemy_action(self):
         # 敵AI：ランダムで生きているプレイヤーを攻撃
         for i, actor in enumerate(self.mspt):
@@ -96,46 +108,19 @@ class BattleManner(BaseState):
                 actor.target = random.choice(targets)
                 actor.action = random.choice(actor.skills)
 
-    def build_turn_order(self):
-        # 生存キャラを素早さ降順で並べる
-        all_chars = [c for c in self.pt + self.mspt if c.is_alive()]
-        self.turn_order = sorted(all_chars, key=lambda c: c.btl_spd, reverse=True)
-        self.turn_index = 0
-
-        for actor in all_chars:
-            if actor.is_alive():
-                skl_name, skl_func = actor.action
-                target = actor.target
-                self.push_action(skl_func, actor, target)
-
-
     def handle_execute_phase(self):
         self.ai_enemy_action()
         self.build_turn_order()
 
-        # while self.turn_index < len(self.turn_order):
-        #     actor = self.turn_order[self.turn_index]
-        #     targ = actor.target
-
-        #     if isinstance(targ, Party):
-        #         targets = [p for p in targ if p.is_alive()]
-        #         if targets:
-        #             actor.target = random.choice(targets)
-
-        #     if actor.is_alive() and actor.target and actor.target.is_alive():
-        #         self.perform_action(actor)
-
-        #     actor.action = None
-        #     actor.target = None
-        #     self.turn_index += 1
-
         while len(self.action) > 0:
-            func, actor, targ = self.action.popleft()
+            func, args = self.action.popleft()
+            actor = args[0]
+            targ  = args[1]
 
-            if isinstance(targ, Party):
+            if isinstance(targ, BaseParty):
                 targets = [p for p in targ if p.is_alive()]
             if isinstance(targ, Character):
-                targets = targ
+                targets = targ if targ.is_alive() else None
 
             if actor.is_alive() and targets:
                 self.perform_action(func, actor, targ)
@@ -158,16 +143,17 @@ class BattleManner(BaseState):
         self.btllog.push(log)
 
     def next_turn(self):
-        if not any(c.is_alive() and c.is_player for c in self.all_chars):
-            self.message = "Enemies win!"
-            self.phase = "end"
-        elif not any(c.is_alive() and not c.is_player for c in self.all_chars):
+        if not any(c.is_alive() and c.is_player for c in self.all_chars()):
+            # Enemies win!
+            gbl.current_scene().GameOver()
+        elif not any(c.is_alive() and not c.is_player for c in self.all_chars()):
+            # Players win!
             self.player_win()
         else:
-            self.stack_wait_commands()
             bt_msg = [f"次のターン"]
             self.btllog.push(bt_msg)
             self.stack_btllog()
+            self.stack_wait_commands()
 
 
 
@@ -187,11 +173,6 @@ class BattleManner(BaseState):
 
 
 
-    def stack_event(self, func, *args, priority=False):
-        if priority:
-            self.turn.appendleft((func, args))
-        else:
-            self.turn.append((func, args))
 
 
 
