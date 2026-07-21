@@ -29,6 +29,7 @@ class BattleManner(BaseState):
         self.comand = deque([])
         self.action = deque([])
         self.btllog = BattleStack_Log(self)
+        self.btltrm = BattleStack_Term(self)
         self.enter()
 
     def enter(self):
@@ -62,6 +63,9 @@ class BattleManner(BaseState):
             if isinstance(self.comand[0], BattleStack_Log):
                 return
         self.comand.appendleft(self.btllog)
+    def stack_btltrm(self):
+        self.btltrm.enter()
+        self.comand.append(self.btltrm)
 
     def update(self):
         self.comand[0].update()
@@ -131,7 +135,8 @@ class BattleManner(BaseState):
         #内部的には次ターンまで先行処理
         #外部的にはログ表示
         self.stack_btllog()
-        self.next_turn()
+        self.stack_btltrm()
+
 
     def perform_action(self, func, actor, targ):
 
@@ -142,34 +147,6 @@ class BattleManner(BaseState):
         actor.vm.end_turn_status()
         self.btllog.push(log)
 
-    def next_turn(self):
-        if not any(c.is_alive() and c.is_player for c in self.all_chars()):
-            # Enemies win!
-            gbl.current_scene().GameOver()
-        elif not any(c.is_alive() and not c.is_player for c in self.all_chars()):
-            # Players win!
-            self.player_win()
-        else:
-            bt_msg = [f"次のターン"]
-            self.btllog.push(bt_msg)
-            self.stack_btllog()
-            self.stack_wait_commands()
-
-
-
-    def player_win(self):
-        gld = 0
-        for i, actor in enumerate(self.mspt):
-            gld += int(actor.gold * px.rndf(0.7, 1.0) + 0.99)
-
-        bt_msg  = ["たたかいに かった"]
-        bt_msg += [f"{gld}G てにいれた"]
-        self.pt.add_gold(gld)
-
-        self.btllog.push(bt_msg)
-        self.stack_btllog()
-        
-        gbl.current_scene().Main()
 
 
 

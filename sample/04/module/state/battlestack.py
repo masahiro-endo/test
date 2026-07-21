@@ -25,7 +25,7 @@ class Singleton(object):
         return cls._instance
     
 
-class BattleStack_Log(BaseState, Singleton):
+class BattleStack_BaseLog(BaseState):
     def __init__(self, parent):
         self.battle = parent
         self.log = deque()
@@ -59,6 +59,17 @@ class BattleStack_Log(BaseState, Singleton):
         for pos, text in enumerate(texts):
             Meth.draw_text(1, 10 + pos * 2, text)
 
+
+
+class BattleStack_Log(BattleStack_BaseLog, Singleton):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+    def update(self):
+        super().update()
+
+    def draw(self):
+        super().draw()
 
 
 
@@ -206,6 +217,73 @@ class BattleStack_Confirm(OptionState):
 
 
 
+# class BattleStack_Log(BaseState, Singleton):
+# class BattleStack_Term(BattleStack_Log):
+#
+# と定義してしまうと、Singletonの影響か、
+# 本クラスの型が何故か「BattleStack_Log」になる。
+class BattleStack_Term(BattleStack_BaseLog, Singleton):
+    def __init__(self, parent):
+        self.battle = parent
+        self.log = deque()
+
+    def enter(self):
+        self.terminal_log()
+
+    def update(self):
+        push = Meth.get_btn_state()
+
+        if push[BTN.A_Z] or push[BTN.B_X]:
+            self.log.popleft()
+            if not self.is_remain():
+                self.branch_path()
+                # 自身をスタックから除外する
+                self.battle.comand.popleft()
+
+    def draw(self):
+        super().draw()
+ 
+    def is_enemy_win(self):
+        return not any(c.is_alive() and c.is_player for c in self.battle.all_chars())
+    def is_player_win(self):
+        return not any(c.is_alive() and not c.is_player for c in self.battle.all_chars())
+
+    def branch_path(self):
+        if self.is_enemy_win():
+            gbl.scene_state().Main()
+            self.battle.pt.get_start_location()
+        elif self.is_player_win():
+            gbl.scene_state().Main()
+        else:
+            self.battle.stack_wait_commands()
+
+    def terminal_log(self):
+        log = []
+        if self.is_enemy_win():
+            log += self.game_over()
+        elif self.is_player_win():
+            log += self.victory()
+        else:
+            log += self.next_turn()
+        self.push(log)
+
+    def next_turn(self):
+        return [f"次のターン"]
+
+    def victory(self):
+        gld = 0
+        for i, actor in enumerate(self.mspt):
+            gld += int(actor.gold * px.rndf(0.7, 1.0) + 0.99)
+        self.battle.pt.add_gold(gld)
+
+        return [f"たたかいに かった",f"{gld}G てにいれた"]
+
+
+    def game_over(self):
+        self.battle.pt.gold = self.pt.gold // 2
+        self.battle.pt[0].hp = 1
+
+        return [f"{self.pt[0].name}は", "いしきを うしなった"]
 
 
 

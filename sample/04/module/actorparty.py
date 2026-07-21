@@ -124,6 +124,7 @@ class PlayerParty(BaseParty):
         pos = self.pos_3d()
         evt = MapMeth.get_obs_key(pos)
         obj = MapTiles.is_defined(pos) and not MapTiles.is_walkable(pos)
+
         # 扉開放や宝箱取得時点でフラグを保持し、
         # 以降は通過を許す
         if obj or (evt and not evt in self.flags): 

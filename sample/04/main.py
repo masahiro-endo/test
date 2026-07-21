@@ -35,10 +35,10 @@ class AppViewModel():
 
         self.config.scenestack = deque([SceneStates()])
         self.scene = gbl.scene_state()
-        self.forefront = gbl.scene_stack()[0]
+        self.stack = gbl.scene_stack()
 
     def update(self):
-        self.forefront.update()
+        self.stack[0].update()
 
         # btn = get_btn_state()
 
@@ -89,7 +89,9 @@ class AppViewModel():
 class AppView:
     def __init__(self, view_model):
         self.vm = view_model
-        self.vm.scene.Test()
+        self.vm.scene.Main()
+        self.vm.stack.appendleft(SceneState_Extend([f"encount !!"]))
+
 
         px.init(
             128, 160, title="Pyxel Sample", quit_key=px.KEY_NONE, display_scale=2
@@ -105,7 +107,8 @@ class AppView:
 
     def draw(self):
         px.cls(px.COLOR_BLACK)
-        self.vm.scene.draw()
+        for scn in reversed(self.vm.stack):
+            scn.draw()
 
         for key in Window.all:
             Window.all[key].draw()

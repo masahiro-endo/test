@@ -208,28 +208,30 @@ class SceneState_GameOver(BaseState):
 # main.py\SceneStackに、pushleft()する。
 # draw処理はscenes[-1]で担わせ、
 # scene[0]である本クラスでupdate処理を奪う。
-class SceneState_Pause(BaseState):
-    def __init__(self):
-        pass
+class SceneState_Extend(BaseState):
+    def __init__(self, texts):
+        self.texts = texts
+
     def update(self):
         push = Meth.get_btn_state()
         for btn in push:
             if push[btn]:
-                sprite = gbl.scenes.popleft()
-                del sprite # self
+                gbl.scene_state().Test()
+                sprite = gbl.scene_stack().popleft()
+                del sprite # # 自身を del する
 
     def draw(self):
         self.draw_pause()
 
     def draw_pause(self):
-        Meth.draw_text(5, 5, "pyxel", self.blink_color())
+        for pos, text in enumerate(self.texts):
+            x, y = (3, 6 + pos * 2)
+            self.draw_rect(x, y, len(text), 2) #背景
+            Meth.draw_text(x, y, text, px.COLOR_ORANGE)
 
-    def blink_color(self):
-        if (px.frame_count // 30) % 2 == 0:
-            return px.COLOR_DARK_BLUE if self.color == px.COLOR_CYAN else px.COLOR_CYAN
-        else:
-            return px.COLOR_CYAN
-
+    def draw_rect(self, x, y, w, h, clr=px.COLOR_BLACK):
+        # 描画座標は x8
+        px.rect(x * 8 - 4 , y * 8 + 4 , w * 8 , h * 8 ,clr)
 
 
 
