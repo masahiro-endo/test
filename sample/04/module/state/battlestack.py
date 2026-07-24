@@ -61,7 +61,8 @@ class BattleStack_BaseLog(BaseState):
 
 
 
-class BattleStack_Log(BattleStack_BaseLog, Singleton):
+# class BattleStack_Log(BattleStack_BaseLog, Singleton):
+class BattleStack_Log(BattleStack_BaseLog):
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -70,6 +71,12 @@ class BattleStack_Log(BattleStack_BaseLog, Singleton):
 
     def draw(self):
         super().draw()
+
+    @classmethod
+    def replicate(cls, parent, log):
+        ins = cls(parent)
+        ins.push(log)
+        return ins
 
 
 
@@ -190,7 +197,7 @@ class BattleStack_Confirm(OptionState):
     def enter(self):
         COMMAND_TREE = {
             'はい'  : [self.battle.handle_execute_phase],
-            'いいえ': [self.battle.stack_wait_commands],
+            'いいえ': [self.battle.reset_stack_wait_commands],
         }
 
         super().__init__(COMMAND_TREE)
@@ -217,18 +224,15 @@ class BattleStack_Confirm(OptionState):
 
 
 
-# class BattleStack_Log(BaseState, Singleton):
-# class BattleStack_Term(BattleStack_Log):
-#
-# と定義してしまうと、Singletonの影響か、
-# 本クラスの型が何故か「BattleStack_Log」になる。
 class BattleStack_Term(BattleStack_BaseLog, Singleton):
+
     def __init__(self, parent):
         self.battle = parent
         self.log = deque()
 
-    def enter(self):
+    def __call__(self):
         self.terminal_log()
+        return self
 
     def update(self):
         push = Meth.get_btn_state()
@@ -255,7 +259,7 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
         elif self.is_player_win():
             gbl.scene_state().Main()
         else:
-            self.battle.stack_wait_commands()
+            self.battle.reset_stack_wait_commands()
 
     def terminal_log(self):
         log = []
@@ -272,7 +276,7 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
     def victory(self):
         gld = 0
-        for i, actor in enumerate(self.mspt):
+        for i, actor in enumerate(self.battle.mspt):
             gld += int(actor.gold * px.rndf(0.7, 1.0) + 0.99)
         self.battle.pt.add_gold(gld)
 
@@ -291,6 +295,87 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
 
 
+class BattleStack_Effect(BaseState):
+
+    def __init__(self, parent):
+        self.battle = parent
+        self.camera_x = 0
+        self.camera_y = 0
+        self.shake_timer = -1
+        self.shake_intensity = 0
+        self.active = []
+
+    def enter(self):
+        self.start_shake(intensity=6, duration=15)  # イベントごとに調整可能
+    
+    def update(self):
+
+        if not self.active:
+            self.enter()
+            self.active = ['active']
+
+        # シェイク処理
+        if self.shake_timer > 0:
+            # ランダムでカメラを揺らす
+            self.camera_x = random.randint(-self.shake_intensity, self.shake_intensity)
+            self.camera_y = random.randint(-self.shake_intensity, self.shake_intensity)
+            self.shake_timer -= 1
+            self.shake_intensity = max(0, self.shake_intensity - 1)
+        elif self.shake_timer == 0:
+            # 自身をスタックから除外する
+            self.battle.comand.popleft()
+        else:
+            self.camera_x = 0
+            self.camera_y = 0
+
+    def draw(self):
+        px.camera(self.camera_x, self.camera_y)
+
+    def start_shake(self, intensity=4, duration=10):
+        self.shake_intensity = intensity
+        self.shake_timer = duration
+
+
+
+
+class BattleStack_Period(BaseState):
+    def __init__(self, parent, *args, **kwargs):
+        self.battle = parent
+        self.func = args[0]
+        self.user = args[1]
+        self.targ = args[2]
+        if 'dmg' in kwargs:
+            self.dmg = kwargs['dmg']
+
+
+    def update(self):
+        self.func(self.targ, self.dmg)
+        # 自身をスタックから除外する
+        self.battle.comand.popleft()
+
+        # check_vitalは、結果をappendleft()する。
+        # self.battle.comand.popleft()の前に書くと、
+        # 本クラス自身でなく、結果をpopleft()してしまう。
+        self.user.vm.check_vital(self.targ, self.battle)
+        self.user.action = ('', None)
+        self.user.target = None
+
+
+
+
+# handle_execute_phase()内で一気に積み上げることも考えたが、
+# 途中の生存判定など面倒だったので、
+# 一人づつ処理するための区切りを設ける
+class BattleStack_Delim(BaseState):
+    def __init__(self, parent):
+        self.battle = parent
+
+    def update(self):
+        # 次のactorのstackを積み上げる
+        self.battle.exec_next_actor()
+
+        # 自身をスタックから除外する
+        self.battle.comand.popleft()
 
 
 

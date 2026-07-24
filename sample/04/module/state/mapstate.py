@@ -92,10 +92,7 @@ class MapState_Field(BaseState):
         # blt(x, y, imgbank, u, v, w, h, [colkey])
         px.blt(56, 48, 0, u, v, sz, sz, 1)
         # ステータス表示
-        px.rect(0, 112, 128, 16 * len(pt), 0)
-        for pos, pl in enumerate(pt):
-            t = f"HP{Meth.pad(pl.hp,3)} MP{Meth.pad(pl.mp,2)} {Meth.pad(pt.gold,4)}G"
-            Meth.draw_text(0, 14 + pos * 2, t)
+        Window.battle_status(self.pt)
 
 
 # 選択肢機能を持つクラスは「親」が異なる

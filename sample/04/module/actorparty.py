@@ -64,17 +64,17 @@ class PlayerParty(BaseParty):
 
     def __init__(self):
         super().__init__()
-        mem = Player(self, "あなた", 30,  6, 12, 12, JOB.WARRIOR)
-        mem.skills = [("攻撃", SkillMeth.normal_attack), ("毒攻撃", SkillMeth.poison_attack)]
+        mem = Player(self, "あなた", 300,  60, 120, 120, JOB.WARRIOR)
+        mem.skills = [("攻撃", SkillMeth.normal_attack), ("呪文", SkillMeth.poison_attack)]
         self.add_member(mem)
  
-        # mem = Player(self, "そうりょ", 15, 50, 5, 10, JOB.PRIEST)
-        # mem.skills = [("攻撃", SkillMeth.normal_attack), ("回復", SkillMeth.heal)]
+        mem = Player(self, "そうりょ", 150, 500, 50, 100, JOB.PRIEST)
+        mem.skills = [("攻撃", SkillMeth.normal_attack), ("回復", SkillMeth.heal)]
+        self.add_member(mem)
+ 
+        # mem = Player(self, "にんじゃ", 20, 5, 8, 15, JOB.NINJA)
+        # mem.skills = [("麻痺攻撃", SkillMeth.paralyze_attack), ("全体攻撃", SkillMeth.aoe)]
         # self.add_member(mem)
- 
-        mem = Player(self, "にんじゃ", 20, 5, 8, 15, JOB.NINJA)
-        mem.skills = [("麻痺攻撃", SkillMeth.paralyze_attack), ("全体攻撃", SkillMeth.aoe)]
-        self.add_member(mem)
 
         self.gold = 0
         self.keys = 0    # カギの数
@@ -194,10 +194,6 @@ class PlayerParty(BaseParty):
             f"ちから {Meth.pad(self[0].atk,2)}  はやさ {Meth.pad(self[0].spd,2)}",
             f" {Meth.pad(self.gold,4)}G  カギ {Meth.pad(self.keys,2)}こ",
         ]
-
-    def battle_status(self):
-        return [self[0].name, f"HP {Meth.pad(self[0].hp,3)}", f"MP  {Meth.pad(self[0].mp,2)}"]
-
 
 
 

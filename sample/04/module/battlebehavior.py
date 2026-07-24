@@ -17,7 +17,7 @@ from resource.battleevent import *
 
 
 
-class BattleManner(BaseState):
+class BattleBehavior(BaseState):
 
     def __init__(self, parent):
         self.scene = parent
@@ -28,20 +28,31 @@ class BattleManner(BaseState):
         # 割り込み処理に対応するためキューを用いる。
         self.comand = deque([])
         self.action = deque([])
-        self.btllog = BattleStack_Log(self)
         self.btltrm = BattleStack_Term(self)
         self.enter()
 
     def enter(self):
         self.enemy_spotted()
-        self.stack_wait_commands()
+        self.reset_stack_wait_commands()
+
+    def reset_reserve_action(self):
+        for i, actor in enumerate(self.all_chars()):
+            if actor.is_alive():
+                actor.action = ('？？', None)
+            else:
+                actor.action = ('しぼう', None)
 
     def stack_wait_commands(self):
         # 事前に、人数分を積んでおく
         for i, actor in enumerate(self.pt):
-            self.comand.append(BattleStack_Action(self, actor))
-            self.comand.append(BattleStack_Target(self, actor))
+            if actor.is_alive():
+                self.comand.append(BattleStack_Action(self, actor))
+                self.comand.append(BattleStack_Target(self, actor))
         self.comand.append(BattleStack_Confirm(self))
+
+    def reset_stack_wait_commands(self):
+        self.reset_reserve_action()
+        self.stack_wait_commands()
 
     def enemy_spotted(self):
         ms_id = self.pt.get_enemy_random()
@@ -55,17 +66,22 @@ class BattleManner(BaseState):
         self.mspt.add_member(Enemy(*data))
 
         bt_msg = [f"{self.mspt.race}が あらわれた"]
-        self.btllog.push(bt_msg)
-        self.stack_btllog()
+        self.stack_btllog(bt_msg)
 
-    def stack_btllog(self):
-        if len(self.comand) > 0:
-            if isinstance(self.comand[0], BattleStack_Log):
-                return
-        self.comand.appendleft(self.btllog)
+    def stack_btllog(self, log, priority=False):
+        ins = BattleStack_Log.replicate(self, log)
+        if priority:
+            self.comand.appendleft(ins)
+        else:
+            self.comand.append(ins)
+    def stack_effect(self):
+        self.comand.append(BattleStack_Effect(self))
+    def stack_reflect(self, *args, **kwargs):
+        self.comand.append(BattleStack_Period(self, *args, **kwargs))
+    def stack_delimit(self):
+        self.comand.append(BattleStack_Delim(self))
     def stack_btltrm(self):
-        self.btltrm.enter()
-        self.comand.append(self.btltrm)
+        self.comand.append(self.btltrm()) # __call__
 
     def update(self):
         self.comand[0].update()
@@ -81,6 +97,8 @@ class BattleManner(BaseState):
         v = act.img // 4 * 64 + 64
         # blt(x, y, imgbank, u, v, w, h, [colkey])
         px.blt(0, 0, 0, u, v, 64, 64)
+        # ステータス表示
+        Window.battle_status(self.pt)
 
 
     def push_action(self, func, *args, priority=False):
@@ -115,8 +133,11 @@ class BattleManner(BaseState):
     def handle_execute_phase(self):
         self.ai_enemy_action()
         self.build_turn_order()
+        self.exec_next_actor()
 
-        while len(self.action) > 0:
+    def exec_next_actor(self):
+        # while len(self.action) > 0:
+        if len(self.action) > 0:
             func, args = self.action.popleft()
             actor = args[0]
             targ  = args[1]
@@ -129,23 +150,20 @@ class BattleManner(BaseState):
             if actor.is_alive() and targets:
                 self.perform_action(func, actor, targ)
 
-            actor.action = None
-            actor.target = None
-
-        #内部的には次ターンまで先行処理
-        #外部的にはログ表示
-        self.stack_btllog()
-        self.stack_btltrm()
+            self.stack_delimit()
+        else:
+            # 末尾に、分岐用の、
+            # Teaminalをstack
+            self.stack_btltrm()
 
 
     def perform_action(self, func, actor, targ):
 
-        log = actor.vm.process_status()
-        if not '麻痺' in log:
-            log = func(actor, targ)
+        actor.vm.process_status(self)
+        if not 'paralyze' in actor.status:
+            func(actor, targ, self)
 
-        actor.vm.end_turn_status()
-        self.btllog.push(log)
+        actor.vm.end_turn_status(self)
 
 
 

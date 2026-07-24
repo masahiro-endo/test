@@ -2,7 +2,7 @@
 from enum import Enum, auto
 import appconfig as gbl
 from module.UI import Window
-from module.battlemanner import *
+from module.battlebehavior import *
 from module.state.basestate import *
 from module.state.optionstate import *
 from module.state.mapstate import *
@@ -226,8 +226,8 @@ class SceneState_Extend(BaseState):
     def draw_pause(self):
         for pos, text in enumerate(self.texts):
             x, y = (3, 6 + pos * 2)
-            self.draw_rect(x, y, len(text), 2) #背景
-            Meth.draw_text(x, y, text, px.COLOR_ORANGE)
+            self.draw_rect(x, y, len(text), 2) #背景矩形
+            Meth.draw_text(x, y, text, px.COLOR_WHITE)
 
     def draw_rect(self, x, y, w, h, clr=px.COLOR_BLACK):
         # 描画座標は x8
@@ -279,10 +279,11 @@ class SceneState_Test_Battle(BaseState):
     def __init__(self, parent):
         self.state = STATE.Test
         self.scene = parent.parent
-        self.manner = BattleManner(self)
+        self.manner = BattleBehavior(self)
 
     def update(self):
         self.manner.update()
                     
     def draw(self):
         self.manner.draw()
+

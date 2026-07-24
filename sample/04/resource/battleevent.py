@@ -25,32 +25,42 @@ class SkillMeth:
         return target
 
     @staticmethod
-    def normal_attack(user, target):
-        log  = []
+    def visual_effect(func, user, target, battle, **kwargs):
+        if 'dmg' in kwargs:
+            dmg = kwargs['dmg']
+            if dmg > 0:
+                if target.is_player:
+                    # とりあえず、プレイヤーがダメージを受けた時だけ
+                    # 視覚効果を発動する
+                    battle.stack_effect()
+                battle.stack_reflect(func, user, target, **kwargs)
+
+    # 1アクションにつき、最大３つをstack
+    # first　log     戦闘ログ　ダメージ算出
+    # middle effect  視覚効果
+    # last   reflect ダメージ反映
+    @staticmethod
+    def normal_attack(user, target, battle):
         target = SkillMeth.choice_single(target)
-        log += user.vm.attack(target)
-        return log
+        dmg = user.vm.attack(target, battle)
+        SkillMeth.visual_effect(user.vm.set_normal_damage, user, target, battle, **{'dmg': dmg})
+        # 生存判定はダメージ反映後
+        # user.vm.check_vital(target, battle)
 
     @staticmethod
-    def poison_attack(user, target):
-        log  = []
-        target = SkillMeth.choice_single(target)
-        log += user.vm.attack(target)
+    def poison_attack(user, target, battle):
+        SkillMeth.normal_attack(user, target, battle)
         if target.is_alive() and random.random() < 0.5:
-            log += target.vm.add_status("poison", 3)
-        return log
+            target.vm.add_status("poison", 3, battle)
 
     @staticmethod
-    def paralyze_attack(user, target):
-        log  = []
-        target = SkillMeth.choice_single(target)
-        log += user.vm.attack(target)
+    def paralyze_attack(user, target, battle):
+        SkillMeth.normal_attack(user, target, battle)
         if target.is_alive() and random.random() < 0.4:
-            log += target.vm.add_status("paralyze", 3)
-        return log
+            target.vm.add_status("paralyze", 3)
 
     @staticmethod
-    def heal(user, target):
+    def heal(user, target, battle):
         log  = []
         amount = random.randint(8, 15)
         target.hp = min(target.mhp, target.hp + amount)
@@ -59,7 +69,7 @@ class SkillMeth:
         return log
 
     @staticmethod
-    def aoe(user, target):
+    def aoe(user, target, battle):
         log  = []
         log += [f"{user.name} の全体攻撃！"]
         for actor in target:

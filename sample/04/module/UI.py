@@ -91,9 +91,18 @@ class Window:
 
     @staticmethod
     def battlemessage(bt_msg):
-        Window.open(WIN.BTL_STS, 8, 0, 16, 8, gbl.player_party().battle_status())
+        Window.open(WIN.BTL_STS, 8, 0, 16, 8, Window.battle_status(gbl.player_party()))
         Window.open(WIN.BTL_MSG, 0, 8, 16, 16, bt_msg)
 
+    @staticmethod
+    def battle_status(pt):
+        px.rect(0, 112 + (2*8), 128, 16 * len(pt), 0)
+        for pos, pl in enumerate(pt):
+            # t = f"HP{Meth.pad(pl.hp,3)} MP{Meth.pad(pl.mp,2)} {Meth.pad(pt.gold,4)}G"
+            t = f"{Meth.pad(pl.name,4)} HP{Meth.pad(pl.hp,3)} MP{Meth.pad(pl.mp,2)}"
+            clr = px.COLOR_WHITE if pl.is_alive() else px.COLOR_RED
+
+            Meth.draw_text(0, 14 + 2 + pos * 1.2, t, clr)
 
 
 
