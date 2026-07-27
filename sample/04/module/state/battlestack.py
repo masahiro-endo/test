@@ -5,6 +5,7 @@ import appconfig as gbl
 from module.actor import *
 from module.state.basestate import *
 from module.state.optionstate import *
+from module.state.battleeffect import *
 
 
 
@@ -15,6 +16,9 @@ class PHASE(Enum):
     TARGET = auto()
     CONFIRM = auto()
     EXECUTE = auto()
+
+
+
 
 
 
@@ -61,7 +65,7 @@ class BattleStack_BaseLog(BaseState):
 
 
 
-# class BattleStack_Log(BattleStack_BaseLog, Singleton):
+# 戦闘ログ表示
 class BattleStack_Log(BattleStack_BaseLog):
     def __init__(self, parent):
         super().__init__(parent)
@@ -87,9 +91,8 @@ class SelectObserver(Observer):
             print(f"[Log] 選択肢が {subject.sel_index} に変更されました")
 
 
-# 1プレーヤーの行動に必要な、個々の選択肢を、
-# ひとまとめにしてスタックする
 
+# 行動選択
 class BattleStack_Action(OptionState):
     def __init__(self, parent, actor):
         self.state = PHASE.INPUT
@@ -137,6 +140,7 @@ class BattleStack_Action(OptionState):
 
 
 
+# ターゲット選択
 class BattleStack_Target(OptionState):
     def __init__(self, parent, actor):
         self.state = PHASE.TARGET
@@ -187,7 +191,7 @@ class BattleStack_Target(OptionState):
 
 
 
-
+# 実行可否
 class BattleStack_Confirm(OptionState):
     def __init__(self, parent):
         self.state = PHASE.CONFIRM
@@ -223,7 +227,7 @@ class BattleStack_Confirm(OptionState):
 
 
 
-
+# １ターンの終端　分岐
 class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
     def __init__(self, parent):
@@ -253,9 +257,15 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
         return not any(c.is_alive() and not c.is_player for c in self.battle.all_chars())
 
     def branch_path(self):
+
         if self.is_enemy_win():
+            # game_over()内ではなく、ここでHPを「１」に戻さないと、
+            # ここに分岐しない
+            for i, actor in enumerate(self.battle.pt):
+                actor.hp = 1
             gbl.scene_state().Main()
             self.battle.pt.get_start_location()
+
         elif self.is_player_win():
             gbl.scene_state().Main()
         else:
@@ -284,60 +294,53 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
 
     def game_over(self):
-        self.battle.pt.gold = self.pt.gold // 2
-        self.battle.pt[0].hp = 1
+        self.battle.pt.gold = self.battle.pt.gold // 2
 
-        return [f"{self.pt[0].name}は", "いしきを うしなった"]
-
+        return [f"{"あなた"}たちは", "いしきを うしなった"]
 
 
 
 
 
 
+
+# 視覚効果
 class BattleStack_Effect(BaseState):
 
-    def __init__(self, parent):
+    def __init__(self, parent, type):
         self.battle = parent
-        self.camera_x = 0
-        self.camera_y = 0
-        self.shake_timer = -1
-        self.shake_intensity = 0
+        self.type = type
         self.active = []
 
     def enter(self):
-        self.start_shake(intensity=6, duration=15)  # イベントごとに調整可能
-    
+        self.active.insert(0,Effect_Buffer([f"now loading..."]))
+
+        if self.type == EFCT.DAMAGE:
+            efct = Effect_Shake(self)
+        elif self.type == EFCT.SLASH:
+            efct = Effect_Slash(self)
+        efct.enter()
+        self.active.append(efct)
+
     def update(self):
 
         if not self.active:
             self.enter()
-            self.active = ['active']
 
-        # シェイク処理
-        if self.shake_timer > 0:
-            # ランダムでカメラを揺らす
-            self.camera_x = random.randint(-self.shake_intensity, self.shake_intensity)
-            self.camera_y = random.randint(-self.shake_intensity, self.shake_intensity)
-            self.shake_timer -= 1
-            self.shake_intensity = max(0, self.shake_intensity - 1)
-        elif self.shake_timer == 0:
+        self.active[0].update()
+
+        if EFCT.DONE in self.active:
             # 自身をスタックから除外する
             self.battle.comand.popleft()
-        else:
-            self.camera_x = 0
-            self.camera_y = 0
 
     def draw(self):
-        px.camera(self.camera_x, self.camera_y)
-
-    def start_shake(self, intensity=4, duration=10):
-        self.shake_intensity = intensity
-        self.shake_timer = duration
+        self.active[0].draw()
 
 
 
 
+
+# 値の確定
 class BattleStack_Period(BaseState):
     def __init__(self, parent, *args, **kwargs):
         self.battle = parent
@@ -363,6 +366,7 @@ class BattleStack_Period(BaseState):
 
 
 
+# 一人ずつ処理するため、待機用
 # handle_execute_phase()内で一気に積み上げることも考えたが、
 # 途中の生存判定など面倒だったので、
 # 一人づつ処理するための区切りを設ける

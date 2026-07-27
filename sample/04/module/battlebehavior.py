@@ -74,8 +74,8 @@ class BattleBehavior(BaseState):
             self.comand.appendleft(ins)
         else:
             self.comand.append(ins)
-    def stack_effect(self):
-        self.comand.append(BattleStack_Effect(self))
+    def stack_effect(self, typ):
+        self.comand.append(BattleStack_Effect(self, typ))
     def stack_reflect(self, *args, **kwargs):
         self.comand.append(BattleStack_Period(self, *args, **kwargs))
     def stack_delimit(self):
@@ -87,8 +87,6 @@ class BattleBehavior(BaseState):
         self.comand[0].update()
 
     def draw(self):
-        self.comand[0].draw()
-
         # バトル用draw処理（モンスターグラフィック表示）
         if not self.mspt:
             return
@@ -99,6 +97,8 @@ class BattleBehavior(BaseState):
         px.blt(0, 0, 0, u, v, 64, 64)
         # ステータス表示
         Window.battle_status(self.pt)
+
+        self.comand[0].draw()
 
 
     def push_action(self, func, *args, priority=False):

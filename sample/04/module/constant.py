@@ -15,6 +15,12 @@ class BTN(IntEnum):
     SEL = auto()
 
 
+class EFCT(Enum):
+    SLASH = 'atk'
+    DAMAGE = 'dmg'
+    DONE = 'done'
+
+
 
 
 

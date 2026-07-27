@@ -2,6 +2,7 @@
 import random
 from enum import Enum, Flag, IntEnum, auto
 
+from module.constant import EFCT
 
 
 
@@ -15,7 +16,7 @@ from enum import Enum, Flag, IntEnum, auto
 class SkillMeth:
 
     @staticmethod
-    def choice_single(target):
+    def choice_one(target):
         # 循環参照対策
         # if isinstance(target, BaseParty):
         if isinstance(target.type, list):
@@ -29,10 +30,12 @@ class SkillMeth:
         if 'dmg' in kwargs:
             dmg = kwargs['dmg']
             if dmg > 0:
+                efct = ''
                 if target.is_player:
-                    # とりあえず、プレイヤーがダメージを受けた時だけ
-                    # 視覚効果を発動する
-                    battle.stack_effect()
+                    efct = EFCT.DAMAGE
+                else:
+                    efct = EFCT.SLASH
+                battle.stack_effect(efct)
                 battle.stack_reflect(func, user, target, **kwargs)
 
     # 1アクションにつき、最大３つをstack
@@ -40,22 +43,28 @@ class SkillMeth:
     # middle effect  視覚効果
     # last   reflect ダメージ反映
     @staticmethod
-    def normal_attack(user, target, battle):
-        target = SkillMeth.choice_single(target)
+    def single_attack(user, target, battle):
         dmg = user.vm.attack(target, battle)
         SkillMeth.visual_effect(user.vm.set_normal_damage, user, target, battle, **{'dmg': dmg})
+
+    def normal_attack(user, target, battle):
+        target = SkillMeth.choice_one(target)
+        SkillMeth.single_attack(user, target, battle)
         # 生存判定はダメージ反映後
         # user.vm.check_vital(target, battle)
 
     @staticmethod
     def poison_attack(user, target, battle):
-        SkillMeth.normal_attack(user, target, battle)
+        target = SkillMeth.choice_one(target)
+        SkillMeth.single_attack(user, target, battle)
+        # 単体に限定していないと.is_alive()でエラー
         if target.is_alive() and random.random() < 0.5:
             target.vm.add_status("poison", 3, battle)
 
     @staticmethod
     def paralyze_attack(user, target, battle):
-        SkillMeth.normal_attack(user, target, battle)
+        target = SkillMeth.choice_one(target)
+        SkillMeth.single_attack(user, target, battle)
         if target.is_alive() and random.random() < 0.4:
             target.vm.add_status("paralyze", 3)
 
