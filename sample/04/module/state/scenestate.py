@@ -159,11 +159,10 @@ class SceneState_Battle(BaseState):
         self.state = STATE.Battle
         self.scene = parent.parent
         self.cursor = None
-
-        # self.logic = BattleBehavior(self)
+        self.logic = BattleBehavior(self)
 
     def enter(self):
-        self.logic.enter_action()
+        self.logic.enter()
 
     def update(self):
         self.logic.update()
@@ -217,8 +216,7 @@ class SceneState_Extend(BaseState):
         for btn in push:
             if push[btn]:
                 gbl.scene_state().Test()
-                sprite = gbl.scene_stack().popleft()
-                del sprite # # 自身を del する
+                gbl.scene_stack().popleft()
 
     def draw(self):
         self.draw_pause()
@@ -280,6 +278,9 @@ class SceneState_Test_Battle(BaseState):
         self.state = STATE.Test
         self.scene = parent.parent
         self.manner = BattleBehavior(self)
+
+    def enter(self):
+        self.manner.enter()
 
     def update(self):
         self.manner.update()

@@ -15,21 +15,26 @@ from resource.battleevent import *
 
 
 
+class StackObserver(Observer):
+    def update(self, subject):
+        if isinstance(subject, BattleBehavior):
+            print(f"[BattleStack] {subject.comand[0].__class__.__name__}が アクティブになりました")
 
 
-class BattleBehavior(BaseState):
+class BattleBehavior(BaseState, Subject):
 
     def __init__(self, parent):
         self.scene = parent
         self.pt = gbl.player_party()
         self.mspt = None
+        self.active = ''
+        super().__init__()
+        self.attach(StackObserver())
 
         # 不意打ち等の、
         # 割り込み処理に対応するためキューを用いる。
         self.comand = deque([])
         self.action = deque([])
-        self.btltrm = BattleStack_Term(self)
-        self.enter()
 
     def enter(self):
         self.enemy_spotted()
@@ -77,13 +82,21 @@ class BattleBehavior(BaseState):
     def stack_effect(self, typ):
         self.comand.append(BattleStack_Effect(self, typ))
     def stack_reflect(self, *args, **kwargs):
-        self.comand.append(BattleStack_Period(self, *args, **kwargs))
+        self.comand.append(BattleStack_Perma(self, *args, **kwargs))
     def stack_delimit(self):
         self.comand.append(BattleStack_Delim(self))
     def stack_btltrm(self):
-        self.comand.append(self.btltrm()) # __call__
+        self.comand.append(BattleStack_Term(self))
+
+    def stack_sensor(self):
+        name = self.comand[0].__class__.__name__
+        if self.active != name:
+            self.active = name
+            self.notify()
+            self.comand[0].enter()
 
     def update(self):
+        self.stack_sensor()
         self.comand[0].update()
 
     def draw(self):

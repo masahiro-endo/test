@@ -16,9 +16,9 @@ from module.state.basestate import *
 
 class OptionState(BaseState, Subject):
 
-    def __init__(self, tree):
+    def __init__(self, tree=None):
         super().__init__()
-        self.tree = tree
+        self.tree = tree if tree else {'dmy': []}
         self.command_stack = [self.tree] # 階層をスタックで管理
         self._sel_i = auto()
         self._sel_v = None

@@ -32,9 +32,9 @@ class SkillMeth:
             if dmg > 0:
                 efct = ''
                 if target.is_player:
-                    efct = EFCT.DAMAGE
+                    efct = EFCT.DMG
                 else:
-                    efct = EFCT.SLASH
+                    efct = EFCT.ATK
                 battle.stack_effect(efct)
                 battle.stack_reflect(func, user, target, **kwargs)
 

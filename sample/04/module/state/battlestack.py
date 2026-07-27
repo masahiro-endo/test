@@ -98,13 +98,16 @@ class BattleStack_Action(OptionState):
         self.state = PHASE.INPUT
         self.battle = parent
         self.actor = actor
-        self.enter()
+        super().__init__()
 
     def enter(self):
         COMMAND_TREE = {
         }
         sub_tree = self.update_sub_tree()
         sub_tree.update(**COMMAND_TREE)
+        # 本番の選択肢を生成してから親クラス初期化では、
+        # update()が先に走り、object has no attribute エラー。
+        # __init__時、仮treeで親を初期化しておく。
         super().__init__(sub_tree)
         self.attach(SelectObserver())
 
@@ -146,7 +149,7 @@ class BattleStack_Target(OptionState):
         self.state = PHASE.TARGET
         self.battle = parent
         self.actor = actor
-        self.enter()
+        super().__init__()
 
     def enter(self):
         COMMAND_TREE = {
@@ -157,7 +160,6 @@ class BattleStack_Target(OptionState):
         self.attach(SelectObserver())
 
         gbl.current_cursor = self
-
 
     def update(self):
         super().update()
@@ -196,7 +198,7 @@ class BattleStack_Confirm(OptionState):
     def __init__(self, parent):
         self.state = PHASE.CONFIRM
         self.battle = parent
-        self.enter()
+        super().__init__()
 
     def enter(self):
         COMMAND_TREE = {
@@ -234,7 +236,7 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
         self.battle = parent
         self.log = deque()
 
-    def __call__(self):
+    def enter(self):
         self.terminal_log()
         return self
 
@@ -310,23 +312,20 @@ class BattleStack_Effect(BaseState):
     def __init__(self, parent, type):
         self.battle = parent
         self.type = type
+        self.table = {
+            EFCT.LOAD : Effect_Loading(self),
+            EFCT.ATK  : Effect_Slash(self),
+            EFCT.BUF  : Effect_Buff(self),
+            EFCT.DMG  : Effect_Shake(self),
+            EFCT.DONE : EFCT.DONE,
+        }
         self.active = []
+        self.active.insert(0, self.table[EFCT.LOAD])
 
     def enter(self):
-        self.active.insert(0,Effect_Buffer([f"now loading..."]))
-
-        if self.type == EFCT.DAMAGE:
-            efct = Effect_Shake(self)
-        elif self.type == EFCT.SLASH:
-            efct = Effect_Slash(self)
-        efct.enter()
-        self.active.append(efct)
+        self.active.append(self.table[self.type]()) # __call__
 
     def update(self):
-
-        if not self.active:
-            self.enter()
-
         self.active[0].update()
 
         if EFCT.DONE in self.active:
@@ -341,7 +340,7 @@ class BattleStack_Effect(BaseState):
 
 
 # 値の確定
-class BattleStack_Period(BaseState):
+class BattleStack_Perma(BaseState):
     def __init__(self, parent, *args, **kwargs):
         self.battle = parent
         self.func = args[0]
@@ -349,7 +348,6 @@ class BattleStack_Period(BaseState):
         self.targ = args[2]
         if 'dmg' in kwargs:
             self.dmg = kwargs['dmg']
-
 
     def update(self):
         self.func(self.targ, self.dmg)
@@ -367,8 +365,8 @@ class BattleStack_Period(BaseState):
 
 
 # 一人ずつ処理するため、待機用
-# handle_execute_phase()内で一気に積み上げることも考えたが、
-# 途中の生存判定など面倒だったので、
+# handle_execute_phase()内で一気に積み上げると、
+# 後々の生存判定などが面倒。
 # 一人づつ処理するための区切りを設ける
 class BattleStack_Delim(BaseState):
     def __init__(self, parent):
