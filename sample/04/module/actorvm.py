@@ -79,27 +79,6 @@ class ActorViewModel():
         if log:
             battle.stack_btllog(log, True)
 
-    def battlelog_spell_effect(self, target, spl_id, cost=0):
-
-        def use_heal(person, mp):
-            hp = min(person.hp + mp * 5, person.mhp)
-            ret = hp - person.hp
-            person.hp += ret
-            return ret
-
-        if spl_id == SPELL.FIRE:
-            dmg = 0 if target.resist else px.rndi(24, 30)
-            bt_msg += self.battlelog_take_damage(target, dmg)
-        elif spl_id == SPELL.HEAL:
-            ret = use_heal(cost)
-            bt_msg += [f"{ret}HP かいふくした"]
-        elif spl_id == SPELL.BURST:
-            dmg = 0
-            for _ in range(cost):
-                dmg += px.rndi(8, 12)
-            bt_msg += self.battlelog_take_damage(target, dmg)
-        return bt_msg
-
 
     def add_status(self, status_name, turns, battle):
         log = []
@@ -110,31 +89,75 @@ class ActorViewModel():
 
     def process_status(self, battle):
         log = []
-        if "paralyze" in self.mdl.status:
-            if random.random() < 0.5:  # 50%で行動不能
-                log += [f"{self.mdl.name} は麻痺で動けない！"]
-                self.mdl.status["paralyze"] -= 1
-                if self.mdl.status["paralyze"] <= 0:
-                    del self.mdl.status["paralyze"]
+        badsts = [ 
+                {'name':'paralyze' , 'desc': f"{self.mdl.name} は麻痺で動けない！", 'rate': 0.5}, 
+                {'name':'confusion', 'desc': f"{self.mdl.name} は混乱している！"  , 'rate': 0.5},
+        ]
+        for bad in badsts:
+            if bad['name'] in self.mdl.status:
+                if random.random() < bad['rate']:  # 一定確率で行動不能
+                    log += [f"{bad['desc']}"]
+                    self.mdl.status[bad['name']] -= 1
+                    if self.mdl.status[bad['name']] <= 0:
+                        del self.mdl.status[bad['name']]
         if log:
             battle.stack_btllog(log)
 
 
     def end_turn_status(self, battle):
         log = []
-        if "poison" in self.mdl.status:
-            dmg = self.calc_poison_damage()
-            log += [f"{self.mdl.name} は毒で {dmg} ダメージ！（残りHP: {self.mdl.hp}）"]
-            self.mdl.status["poison"] -= 1
-            if self.mdl.status["poison"] <= 0:
-                del self.mdl.status["poison"]
+        badsts = [ 
+                {'name':'poison', 'desc': "毒"  , 'dmg': self.calc_chip_damage}, 
+                {'name':'bleed' , 'desc': "出血", 'dmg': self.calc_chip_damage},
+        ]
+        for bad in badsts:
+            if bad['name'] in self.mdl.status:
+                dmg = self.calc_chip_damage()
+                log += [f"{self.mdl.name} は"]
+                log += [f"{bad['desc']}" + f"で {dmg} ダメージ！"]
+                self.mdl.status[bad['name']] -= 1
+                if self.mdl.status[bad['name']] <= 0:
+                    del self.mdl.status[bad['name']]
         if log:
             battle.stack_btllog(log)
-            SkillMeth.visual_effect(self.mdl.vm.set_poison_damage, self.mdl, self.mdl, battle, **{'dmg': dmg})
+            SkillMeth.visual_effect(self.mdl.vm.set_chip_damage, self.mdl, self.mdl, battle, **{'dmg': dmg})
 
-    def calc_poison_damage(self):
+    def calc_chip_damage(self):
         dmg = max(1, self.mdl.mhp // 10)
         return dmg
-    def set_poison_damage(self, target, dmg):
+    def set_chip_damage(self, target, dmg):
         target.hp = max(target.hp - dmg, 0)
+
+
+    def use_mp(self, cost):
+        if self.mdl.mp >= cost:
+            self.mdl.mp -= cost
+            return True
+        return False
+
+    def heal(self, target, battle):
+        spells = [
+            {'name': 'ヒール', 'type': 'support', 'power': 20, 'mp': 2, 'desc': '味方単体のHPを回復'},
+        ]
+        log = []
+        rcv = 0
+
+        log += [f"{self.mdl.name} は 回復を唱えた！"]
+
+        if self.mdl.use_mp(spells[0]['mp']):
+            rcv = self.calc_heal_support()
+            log += [f"{target.name} は {rcv} 回復した！"]
+        else:
+            log += [f"MPが足りない！"]
+
+        if log:
+            battle.stack_btllog(log)
+        return rcv
+
+
+    def calc_heal_support(self):
+        recov = random.randint(8, 15)
+        return recov
+    def set_heal_support(self, target, recov):
+        target.hp = min(target.mhp, target.hp + recov)
 

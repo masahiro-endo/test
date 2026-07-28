@@ -65,11 +65,13 @@ class PlayerParty(BaseParty):
     def __init__(self):
         super().__init__()
         mem = Player(self, "あなた", 30,  6, 12, 12, JOB.WARRIOR)
-        mem.skills = [("攻撃", SkillMeth.normal_attack), ("呪文", SkillMeth.poison_attack)]
+        mem.skills = [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK), ("呪文", None, SKLTYP.NODE)]
+        mem.spells = [("回復", SkillMeth.heal, SKLTYP.SUPP)]
         self.add_member(mem)
  
         mem = Player(self, "そうりょ", 15, 50, 5, 10, JOB.PRIEST)
-        mem.skills = [("攻撃", SkillMeth.poison_attack), ("回復", SkillMeth.heal)]
+        mem.skills = [("攻撃", SkillMeth.poison_attack, SKLTYP.ATTK), ("呪文", None, SKLTYP.NODE)]
+        mem.spells = [("回復", SkillMeth.heal, SKLTYP.SUPP)]
         self.add_member(mem)
  
         # mem = Player(self, "にんじゃ", 20, 5, 8, 15, JOB.NINJA)

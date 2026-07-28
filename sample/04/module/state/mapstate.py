@@ -171,7 +171,7 @@ class MapState_FieldSpell(OptionState):
 
 
     def update_spell_tree(self):
-        resr = SkillResources().spells
+        resr = SpellResources().spells
         sub_tree = {}
         for i, data in enumerate(resr):
             name, mp, place, desc = data

@@ -85,11 +85,11 @@ class BattleStack_Log(BattleStack_BaseLog):
 
 
 
+
 class SelectObserver(Observer):
     def update(self, subject):
         if isinstance(subject, OptionState):
             print(f"[Log] 選択肢が {subject.sel_index} に変更されました")
-
 
 
 # 行動選択
@@ -98,6 +98,7 @@ class BattleStack_Action(OptionState):
         self.state = PHASE.INPUT
         self.battle = parent
         self.actor = actor
+        # __init__時、仮treeで親を初期化しておく。
         super().__init__()
 
     def enter(self):
@@ -105,9 +106,8 @@ class BattleStack_Action(OptionState):
         }
         sub_tree = self.update_sub_tree()
         sub_tree.update(**COMMAND_TREE)
-        # 本番の選択肢を生成してから親クラス初期化では、
+        # 本番の選択肢を生成してから親クラス初期化では遅く、
         # update()が先に走り、object has no attribute エラー。
-        # __init__時、仮treeで親を初期化しておく。
         super().__init__(sub_tree)
         self.attach(SelectObserver())
 
@@ -122,15 +122,18 @@ class BattleStack_Action(OptionState):
 
 
     def update_sub_tree(self):
+        spl_tree = {}
         sub_tree = {}
-        
-        for i, skls in enumerate(self.actor.skills):
-            skl_name, skl_func = skls
-            sub_tree[skl_name] = [None, skls]
 
-        # ヒールなどの「味方」側なら、
-        # 選択肢を味方名を切り替え
-        # actor.action.headto
+        for spls in self.actor.spells:
+            spl_name, spl_func, spl_typ = spls
+            spl_tree[spl_name] = [None, spls]
+        
+        for skls in self.actor.skills:
+            skl_name, skl_func, skl_typ = skls
+            sub_tree[skl_name] = [None, skls]
+            if skl_name == '呪文':
+                sub_tree[skl_name] = spl_tree
 
         return sub_tree
 
@@ -138,8 +141,13 @@ class BattleStack_Action(OptionState):
         push = Meth.get_btn_state()
 
         if push[BTN.A_Z] or push[BTN.B_X]:
-            self.actor.action = self.sel_value[1][1]
-            self.battle.comand.popleft() # 自身をpop()する
+            # 選択肢が、末端階層 に遷移するまでは処理しない
+            if self.is_leaf:
+                self.actor.action = self.sel_value[1][1]
+                self.battle.comand.popleft() # 自身をpop()する
+
+
+
 
 
 
@@ -172,15 +180,18 @@ class BattleStack_Target(OptionState):
 
     def update_sub_tree(self):
         sub_tree = {}
-        
-        # 「敵」に対する行動なら、選択肢はパーティー単位
-        # for i, data in enumerate(self.battle.mspt):
-        race = self.battle.mspt.race
-        sub_tree[race] = [None, self.battle.mspt]
+        name, func, typ = self.actor.action
 
-        # ヒールなどの「味方」側なら、
-        # 選択肢を味方名を切り替え
-        # actor.action.headto
+        if typ == SKLTYP.ATTK:
+            # 「敵」に対する行動なら、選択肢はパーティー単位
+            race = self.battle.mspt.race
+            sub_tree[race] = [None, self.battle.mspt]
+            
+        elif typ == SKLTYP.SUPP:
+            # ヒールなどの「味方」側なら、
+            # 選択肢を味方名を切り替え
+            for char in self.actor.party:
+                sub_tree[char.name] = [None, char]
 
         return sub_tree
 
@@ -328,6 +339,7 @@ class BattleStack_Effect(BaseState):
     def update(self):
         self.active[0].update()
 
+        # List内にクラスとENUMを混在させるのは、マズいか。
         if EFCT.DONE in self.active:
             # 自身をスタックから除外する
             self.battle.comand.popleft()

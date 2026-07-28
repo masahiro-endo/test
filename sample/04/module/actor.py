@@ -20,7 +20,7 @@ class JOB(Enum):
 
 # Model
 class Character():
-    def __init__(self, parent, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0, skills=None):
+    def __init__(self, parent, name, hp, mp, atk, spd, is_player,resist=0, img=None, gold=0, skills=None, spells=None):
         super().__init__()
         self.party = parent
         self.name = name
@@ -39,7 +39,8 @@ class Character():
         self.status = {}  # {"poison": 残りターン, "paralyze": 残りターン}
         self.action = None
         self.target = None
-        self.skills = skills if skills else []  # (スキル名, 関数)
+        self.skills = skills if skills else []  # 大分類　(スキル名, 関数)
+        self.spells = spells if spells else []  # 大分類「呪文」選択時の小分類として用いる
         self.vm = ActorViewModel(self)
 
     def __lt__(self, other):

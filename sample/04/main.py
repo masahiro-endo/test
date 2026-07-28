@@ -30,7 +30,7 @@ class AppViewModel():
         self.model = model
 
         self.config = gbl.global_setting()
-        self.config.resource = MapResources()
+        self.config.mapresource = MapResources()
         self.config.party = PlayerParty()
 
         self.config.scenestack = deque([SceneStates()])

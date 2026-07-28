@@ -18,11 +18,13 @@ class OptionState(BaseState, Subject):
 
     def __init__(self, tree=None):
         super().__init__()
-        self.tree = tree if tree else {'dmy': []}
+        self.tree = tree if tree else {'': []} #ダミー
         self.command_stack = [self.tree] # 階層をスタックで管理
         self._sel_i = auto()
         self._sel_v = None
         self.sel_index = 0
+        self.is_leaf = False
+
 
     # 内部変数「_sel_i」と、プロパティ名「sel_index」を
     # 一致させてしまうと無限再帰
@@ -107,9 +109,30 @@ class OptionState(BaseState, Subject):
             selected_cmd = options[self.sel_index]
             sub_tree = current_tree[selected_cmd]
             if isinstance(sub_tree, dict):
+                self.is_leaf = False
+                # self.command_stack.append()した時の変数内部は、
+                # 小項目を抜き出しているというよりは
+                # 末尾要素に小項目を追加している
+                #     command_stack[0] = {
+                #         "たたかう": {
+                #             "通常攻撃": None,
+                #             "魔法": {
+                #                 "回復": None,
+                #                 "攻撃": None
+                #             }
+                #         },
+                #     }
+                #     command_stack[1] = {
+                #         "魔法": {
+                #             "回復": None,
+                #             "攻撃": None
+                #         }
+                #     }
+
                 self.command_stack.append(sub_tree)
                 self.sel_index = 0
             else:
+                self.is_leaf = True
                 # ()は実行時に付与する。
                 if not sub_tree:
                     return
@@ -127,3 +150,9 @@ class OptionState(BaseState, Subject):
     def show_message(self, texts):
         for pos, text in enumerate(texts):
             Meth.draw_text(1, 10 + pos * 2, text)
+
+    def dict_depth(self, dic):
+        if not isinstance(dic, dict) or not dic:
+            return 0
+        return 1 + max(self.dict_depth(v) for v in dic.values())
+

@@ -10,6 +10,16 @@ from module.constant import EFCT
 
 
 
+class SKLTYP(Enum):
+    ATTK = 'attack'
+    SUPP = 'support'
+    DEFE = 'defence'
+    SPEC = 'special'
+    NODE = 'subcate'
+
+
+
+
 
 
 
@@ -27,16 +37,22 @@ class SkillMeth:
 
     @staticmethod
     def visual_effect(func, user, target, battle, **kwargs):
+        efct = ''
         if 'dmg' in kwargs:
             dmg = kwargs['dmg']
             if dmg > 0:
-                efct = ''
                 if target.is_player:
                     efct = EFCT.DMG
                 else:
                     efct = EFCT.ATK
-                battle.stack_effect(efct)
-                battle.stack_reflect(func, user, target, **kwargs)
+        elif 'rcv' in kwargs:
+            rcv = kwargs['rcv']
+            if rcv > 0:
+                efct = EFCT.BUF
+        if efct:
+            battle.stack_effect(efct)
+            battle.stack_reflect(func, user, target, **kwargs)
+
 
     # 1アクションにつき、最大３つをstack
     # first　log     戦闘ログ　ダメージ算出
@@ -70,12 +86,8 @@ class SkillMeth:
 
     @staticmethod
     def heal(user, target, battle):
-        log  = []
-        amount = random.randint(8, 15)
-        target.hp = min(target.mhp, target.hp + amount)
-        log += [f"{user.name} は 回復を唱えた！"]
-        log += [f"{target.name} は {amount} 回復した！"]
-        return log
+        rcv = user.vm.heal(target, battle)
+        SkillMeth.visual_effect(user.vm.set_heal_support, user, target, battle, **{'rcv': rcv})
 
     @staticmethod
     def aoe(user, target, battle):
@@ -95,15 +107,32 @@ class SkillMeth:
 
 
 
+class SKLResour:
+    _instance = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SKLResour, cls).__new__(cls)
+            cls._instance.skills = (
+                ("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK), 
+                ("呪文", SkillMeth.poison_attack, SKLTYP.ATTK),
+                ("回復", SkillMeth.heal, SKLTYP.SUPP),
+                ("防御", SkillMeth.heal, SKLTYP.DEFE),
+                ("逃走", SkillMeth.heal, SKLTYP.SPEC),
+            )
+
+        return cls._instance
 
 
 
-class SKL(Flag):
+
+
+
+
+
+
+class SPLAREA(Flag):
     FLD = 'FIELD'
     BTL = 'BATTLE'
-
-
-
 
 
 class SpellResources:
@@ -113,10 +142,10 @@ class SpellResources:
             cls._instance = super(SpellResources, cls).__new__(cls)
             # 呪文データ
             cls._instance.spells = (
-                [ 'ファイア', 2, [SKL.BTL]         , ['ちいさな ひのたまを', 'てきにぶつけて ダメージ'] ],
-                [ 'リターン', 6, [SKL.FLD, SKL.BTL], ['スタートいちに', 'テレポートする'] ],
-                [ 'ヒール'  , 0, [SKL.FLD, SKL.BTL], ['HPを かいふく', 'かいふくしたぶんMPをつかう'] ],
-                [ 'バースト', 0, [SKL.BTL]         , ['すべての まりょくを', 'てきにぶつけて だいダメージ'] ],
+                [ 'ファイア', 2, [SPLAREA.BTL]             , ['ちいさな ひのたまを', 'てきにぶつけて ダメージ'] ],
+                [ 'リターン', 6, [SPLAREA.FLD, SPLAREA.BTL], ['スタートいちに', 'テレポートする'] ],
+                [ 'ヒール'  , 0, [SPLAREA.FLD, SPLAREA.BTL], ['HPを かいふく', 'かいふくしたぶんMPをつかう'] ],
+                [ 'バースト', 0, [SPLAREA.BTL]             , ['すべての まりょくを', 'てきにぶつけて だいダメージ'] ],
             )
 
         return cls._instance

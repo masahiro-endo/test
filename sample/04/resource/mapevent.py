@@ -248,14 +248,14 @@ class MapResources:
             # クラス化すると、循環参照を考慮せねばならないので配列で
             # Character生成時の、引数リストとして、下記配列行を渡す。
             cls._instance.monsters = (
-                ['かぼちゃ',  12, 0,  6, 12, 0, 0,  20, [("攻撃", SkillMeth.normal_attack)] ],
-                ['こおに'  ,  24, 0, 10, 13, 0, 1,  40, [("攻撃", SkillMeth.normal_attack)] ],
-                ['おにび'  ,  32, 2, 14, 18, 1, 2,  80, [("攻撃", SkillMeth.normal_attack)] ],
-                ['ゆうれい',  40, 0, 17, 32, 0, 3, 160, [("麻痺攻撃", SkillMeth.paralyze_attack)] ],
-                ['にんじゃ',  64, 0, 34, 28, 0, 4, 320, [("攻撃", SkillMeth.normal_attack), ("毒攻撃", SkillMeth.poison_attack)] ],
-                ['まどうし', 120, 4,  8, 15, 0, 5,   0, [("魔法", SkillMeth.normal_magic) ] ],
-                ['だてんし', 200, 0, 20, 27, 1, 6,   0, [("氷魔法", SkillMeth.ice_magic)  ] ],
-                ['めがみ'  , 400, 0, 99, 99, 0, 7,   0, [("全体魔法", SkillMeth.aoe)] ],
+                ['かぼちゃ',  12, 0,  6, 12, 0, 0,  20, [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK)] ],
+                ['こおに'  ,  24, 0, 10, 13, 0, 1,  40, [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK)] ],
+                ['おにび'  ,  32, 2, 14, 18, 1, 2,  80, [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK)] ],
+                ['ゆうれい',  40, 0, 17, 32, 0, 3, 160, [("麻痺攻撃", SkillMeth.paralyze_attack, SKLTYP.ATTK)] ],
+                ['にんじゃ',  64, 0, 34, 28, 0, 4, 320, [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK), ("毒攻撃", SkillMeth.poison_attack, SKLTYP.ATTK)] ],
+                ['まどうし', 120, 4,  8, 15, 0, 5,   0, [("魔法", SkillMeth.normal_magic, SKLTYP.ATTK) ] ],
+                ['だてんし', 200, 0, 20, 27, 1, 6,   0, [("氷魔法", SkillMeth.ice_magic, SKLTYP.ATTK)  ] ],
+                ['めがみ'  , 400, 0, 99, 99, 0, 7,   0, [("全体魔法", SkillMeth.aoe, SKLTYP.ATTK)] ],
             )
 
         return cls._instance

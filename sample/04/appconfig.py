@@ -13,9 +13,7 @@ class Globals:
             cls._instance.scenestack = None
             cls._instance.map = None
             cls._instance.party = None
-            cls._instance.cursor = None
-            cls._instance.resource = None
-            cls._instance.contoldevice = None
+            cls._instance.mapresource = None
         return cls._instance
 
 
@@ -34,12 +32,7 @@ def field_map():
 def player_party():
     return Globals().party
 
-def current_cursor():
-    return Globals().cursor
-
 def map_resource():
-    return Globals().resource
+    return Globals().mapresource
 
-def contol_device():
-    return Globals().contoldevice
 

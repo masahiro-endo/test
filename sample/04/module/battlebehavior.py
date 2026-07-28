@@ -130,7 +130,7 @@ class BattleBehavior(BaseState, Subject):
 
         for actor in turn_order:
             if actor.is_alive():
-                skl_name, skl_func = actor.action
+                skl_name, skl_func, skl_typ = actor.action
                 target = actor.target
                 self.push_action(skl_func, actor, target)
 
