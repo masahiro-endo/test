@@ -137,16 +137,16 @@ class ActorViewModel():
 
     def heal(self, target, battle):
         spells = [
-            {'name': 'ヒール', 'type': 'support', 'power': 20, 'mp': 2, 'desc': '味方単体のHPを回復'},
+            {'name': 'ヒール', 'type': 'support', 'power': 20, 'mp': 2, 'desc': 'HPが回復した！'},
         ]
         log = []
         rcv = 0
 
-        log += [f"{self.mdl.name} は 回復を唱えた！"]
+        log += [f"{self.mdl.name} は {spells[0]['name']}を唱えた！"]
 
         if self.mdl.use_mp(spells[0]['mp']):
             rcv = self.calc_heal_support()
-            log += [f"{target.name} は {rcv} 回復した！"]
+            log += [f"{target.name} は {rcv} {spells[0]['desc']}"]
         else:
             log += [f"MPが足りない！"]
 

@@ -22,6 +22,7 @@ class EFCT(Enum):
     ATK = 'atk'
     DMG = 'dmg'
     BUF = 'buf'
+    EXP = 'exp'
     LOAD = 'load'
     DONE = 'done'
 

@@ -327,6 +327,7 @@ class BattleStack_Effect(BaseState):
             EFCT.LOAD : Effect_Loading(self),
             EFCT.ATK  : Effect_Slash(self),
             EFCT.BUF  : Effect_Buff(self),
+            EFCT.EXP  : Effect_Explode(self),
             EFCT.DMG  : Effect_Shake(self),
             EFCT.DONE : EFCT.DONE,
         }
