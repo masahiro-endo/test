@@ -36,32 +36,34 @@ class SkillMeth:
         return target
 
     @staticmethod
-    def visual_effect(func, user, target, battle, **kwargs):
+    def visual_effect(target, battle, **kwargs):
+        amnt = 0
         efct = ''
+        for val in kwargs.values():
+            amnt = val if val > amnt else amnt
+        if amnt == 0:
+            return
+
         if 'dmg' in kwargs:
-            dmg = kwargs['dmg']
-            if dmg > 0:
-                if target.is_player:
-                    efct = EFCT.DMG
-                else:
-                    efct = EFCT.ATK
+            efct = EFCT.DMG if target.is_player else EFCT.ATK
         elif 'rcv' in kwargs:
-            rcv = kwargs['rcv']
-            if rcv > 0:
-                efct = EFCT.BUF
-        if efct:
-            battle.stack_effect(efct)
-            battle.stack_reflect(func, user, target, **kwargs)
+            efct = EFCT.BUF
+        elif 'aoe' in kwargs:
+            efct = EFCT.AOE
+
+        battle.stack_effect(efct)
 
 
     # 1アクションにつき、最大３つをstack
-    # first　log     戦闘ログ　ダメージ算出
-    # middle effect  視覚効果
-    # last   reflect ダメージ反映
+    # first　log       戦闘ログ　ダメージ計算
+    # middle effect    視覚効果
+    # last   permanent ダメージ反映
     @staticmethod
     def single_attack(user, target, battle):
         dmg = user.vm.attack(target, battle)
-        SkillMeth.visual_effect(user.vm.set_normal_damage, user, target, battle, **{'dmg': dmg})
+        kwargs = {'dmg': dmg}
+        SkillMeth.visual_effect(target, battle, **kwargs)
+        battle.stack_permanent(user.vm.set_normal_damage, user, target, **kwargs)
 
     def normal_attack(user, target, battle):
         target = SkillMeth.choice_one(target)
@@ -86,23 +88,29 @@ class SkillMeth:
 
     @staticmethod
     def heal(user, target, battle):
-        rcv = user.vm.heal(target, battle)
-        SkillMeth.visual_effect(user.vm.set_heal_support, user, target, battle, **{'rcv': rcv})
+        if not user.vm.ready_heal(target, battle):
+            return
+        #最優先や末尾だとエフェクトのタイミングが合わない
+        SkillMeth.visual_effect(target, battle, rcv=999)
+        rcv = user.vm.use_heal(target, battle)
+        kwargs = {'rcv': rcv}
+        battle.stack_permanent(user.vm.set_heal_support, user, target, **kwargs)
 
     @staticmethod
     def aoe(user, target, battle):
-        log  = []
-        log += [f"{user.name} の全体攻撃！"]
-        for actor in target:
-            if actor.is_alive():
-                log += user.vm.attack(actor)
-        return log
+        if not user.vm.ready_aoe(target, battle):
+            return
+        #最優先や末尾だとエフェクトのタイミングが合わない
+        SkillMeth.visual_effect(target, battle, aoe=999)
+        for targ in target:
+            if targ.is_alive():
+                dmg = user.vm.use_aoe(targ, battle)
+                kwargs = {'aoe': dmg}
+                battle.stack_permanent(user.vm.set_normal_damage, user, targ, **kwargs)
 
 
-    def normal_magic(user, target, battle):
-        pass
-    def ice_magic(user, target, battle):
-        pass
+
+
 
 
 

@@ -135,29 +135,56 @@ class ActorViewModel():
             return True
         return False
 
-    def heal(self, target, battle):
+    def ready_heal(self, target, battle):
         spells = [
             {'name': 'ヒール', 'type': 'support', 'power': 20, 'mp': 2, 'desc': 'HPが回復した！'},
         ]
         log = []
-        rcv = 0
-
         log += [f"{self.mdl.name} は {spells[0]['name']}を唱えた！"]
 
-        if self.mdl.use_mp(spells[0]['mp']):
-            rcv = self.calc_heal_support()
-            log += [f"{target.name} は {rcv} {spells[0]['desc']}"]
-        else:
+        if not self.use_mp(spells[0]['mp']):
             log += [f"MPが足りない！"]
-
-        if log:
             battle.stack_btllog(log)
-        return rcv
+            return False
+        battle.stack_btllog(log)
+        return True
+
+    def use_heal(self, target, battle):
+        log = []
+        amnt = 0
+
+        amnt = self.calc_heal_support()
+        log += [f"{target.name} は {amnt} HPが回復した！"]
+        battle.stack_btllog(log)
+        return amnt
 
 
     def calc_heal_support(self):
-        recov = random.randint(8, 15)
-        return recov
-    def set_heal_support(self, target, recov):
-        target.hp = min(target.mhp, target.hp + recov)
+        amnt = random.randint(8, 15)
+        return amnt
+    def set_heal_support(self, target, amnt):
+        target.hp = min(target.mhp, target.hp + amnt)
 
+
+
+    def ready_aoe(self, target, battle):
+        spells = [
+            {'name': '全体攻撃', 'type': 'atack', 'power': 20, 'mp': 2, 'desc': 'ダメージ！'},
+        ]
+        log = []
+        log += [f"{self.mdl.name} の {spells[0]['name']}！"]
+
+        if not self.use_mp(spells[0]['mp']):
+            log += [f"MPが足りない！"]
+            battle.stack_btllog(log)
+            return False
+        battle.stack_btllog(log)
+        return True
+
+    def use_aoe(self, target, battle):
+        log = []
+        dmg = 0
+        dmg = self.calc_narmal_damage(target)
+        log += [f"{target.name} は {dmg} ダメージ！"]                
+        battle.stack_btllog(log)
+        return dmg

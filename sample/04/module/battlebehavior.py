@@ -73,20 +73,21 @@ class BattleBehavior(BaseState, Subject):
         bt_msg = [f"{self.mspt.race}が あらわれた"]
         self.stack_btllog(bt_msg)
 
-    def stack_btllog(self, log, priority=False):
-        ins = BattleStack_Log.replicate(self, log)
+    def _stack(self, stk, priority):
         if priority:
-            self.comand.appendleft(ins)
+            self.comand.appendleft(stk)
         else:
-            self.comand.append(ins)
-    def stack_effect(self, typ):
-        self.comand.append(BattleStack_Effect(self, typ))
-    def stack_reflect(self, *args, **kwargs):
-        self.comand.append(BattleStack_Perma(self, *args, **kwargs))
-    def stack_delimit(self):
-        self.comand.append(BattleStack_Delim(self))
-    def stack_btltrm(self):
-        self.comand.append(BattleStack_Term(self))
+            self.comand.append(stk)
+    def stack_btllog(self, log, prior=False):
+        self._stack(BattleStack_Log.replicate(self, log), prior)
+    def stack_effect(self, typ, prior=False):
+        self._stack(BattleStack_Effect(self, typ), prior)
+    def stack_permanent(self, *args, prior=False, **kwargs):
+        self._stack(BattleStack_Perma(self, *args, **kwargs), prior)
+    def stack_delimit(self, prior=False):
+        self._stack(BattleStack_Delim(self), prior)
+    def stack_btltrm(self, prior=False):
+        self._stack(BattleStack_Term(self), prior)
 
     def stack_sensor(self):
         name = self.comand[0].__class__.__name__

@@ -81,17 +81,57 @@ class BaseEffect(BaseState):
 
 class Effect_Slash(BaseEffect):
 
+    def draw_thick_line_polygon(x1, y1, x2, y2, col, thickness):
+        # ポリゴンで太線を描く関数
+        # x1, y1 : 始点
+        # x2, y2 : 終点
+        # col    : 色 (0〜15)
+        # thickness : 太さ（ピクセル）
+
+        # 線の方向ベクトル
+        dx = x2 - x1
+        dy = y2 - y1
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return  # 長さ0なら描かない
+
+        # 法線ベクトル（垂直方向）
+        nx = -dy / length
+        ny = dx / length
+
+        # 太さの半分
+        half_t = thickness / 2
+
+        # 長方形の4頂点を計算
+        x1a = x1 + nx * half_t
+        y1a = y1 + ny * half_t
+        x1b = x1 - nx * half_t
+        y1b = y1 - ny * half_t
+        x2a = x2 + nx * half_t
+        y2a = y2 + ny * half_t
+        x2b = x2 - nx * half_t
+        y2b = y2 - ny * half_t
+
+        # 2つの三角形で長方形を描く
+        px.tri(x1a, y1a, x2a, y2a, x1b, y1b, col)
+        px.tri(x2a, y2a, x2b, y2b, x1b, y1b, col)
+
+
     def __init__(self, parent):
         super().__init__(parent)
+        self.x = 60
+        self.y = 60
 
     def update(self):
         super().update()
 
     def draw(self):
         super().draw()
-        px.line(self.x, self.y,
-                    self.x - self.view_timer * 12,
-                    self.y - self.view_timer * 12, px.COLOR_WHITE)
+
+        Effect_Slash.draw_thick_line_polygon(self.x, self.y,
+                                             self.x - self.view_timer * 20, 
+                                             self.y - self.view_timer * 15, col=px.COLOR_WHITE, thickness=3)
+
 
     def start_effect(self, duration=5):
 

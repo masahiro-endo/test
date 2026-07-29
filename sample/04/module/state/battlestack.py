@@ -327,7 +327,7 @@ class BattleStack_Effect(BaseState):
             EFCT.LOAD : Effect_Loading(self),
             EFCT.ATK  : Effect_Slash(self),
             EFCT.BUF  : Effect_Buff(self),
-            EFCT.EXP  : Effect_Explode(self),
+            EFCT.AOE  : Effect_Explode(self),
             EFCT.DMG  : Effect_Shake(self),
             EFCT.DONE : EFCT.DONE,
         }
@@ -359,11 +359,13 @@ class BattleStack_Perma(BaseState):
         self.func = args[0]
         self.user = args[1]
         self.targ = args[2]
-        if 'dmg' in kwargs:
-            self.dmg = kwargs['dmg']
+        amnt = 0
+        for val in kwargs.values():
+            amnt = val if val > amnt else amnt
+        self.amnt = amnt
 
     def update(self):
-        self.func(self.targ, self.dmg)
+        self.func(self.targ, self.amnt)
         # 自身をスタックから除外する
         self.battle.comand.popleft()
 
