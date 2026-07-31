@@ -65,7 +65,7 @@ class PlayerParty(BaseParty):
     def __init__(self):
         super().__init__()
         mem = Player(self, "あなた", 30,  6, 12, 12, JOB.WARRIOR)
-        mem.skills = [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK), ("呪文", None, SKLTYP.NODE)]
+        mem.skills = [("攻撃", SkillMeth.normal_attack, SKLTYP.ATTK), ("呪文", None, SKLTYP.NODE), ("逃走", SkillMeth.escape, SKLTYP.SPEC)]
         mem.spells = [("全体", SkillMeth.aoe, SKLTYP.ATTK), ("回復", SkillMeth.heal, SKLTYP.SUPP)]
         self.add_member(mem)
  

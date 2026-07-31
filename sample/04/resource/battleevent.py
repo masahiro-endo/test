@@ -108,6 +108,11 @@ class SkillMeth:
                 kwargs = {'aoe': dmg}
                 battle.stack_permanent(user.vm.set_normal_damage, user, targ, **kwargs)
 
+    @staticmethod
+    def escape(user, target, battle):
+        if not user.vm.try_escape(target, battle):
+            return
+        battle.stack_btlrun()
 
 
 

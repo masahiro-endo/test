@@ -188,3 +188,27 @@ class ActorViewModel():
         log += [f"{target.name} は {dmg} ダメージ！"]                
         battle.stack_btllog(log)
         return dmg
+
+
+
+    def try_escape(self, target, battle):
+        spells = [
+            {'name': '逃走', 'type': 'atack', 'power': 20, 'mp': 2, 'desc': 'ダメージ！'},
+        ]
+        log = []
+        log += [f"{self.mdl.name} の {spells[0]['name']}..."]
+        battle.stack_btllog(log)
+
+        spd = 0
+        for targ in target:
+            spd = targ.btl_spd if targ.btl_spd > spd else spd
+
+        escape_chance = self.mdl.btl_spd / (self.mdl.btl_spd + spd)
+        if not random.random() < escape_chance:
+            log = []
+            log += [f"にげられない！"]
+            battle.stack_btllog(log)
+            return False
+        return True
+
+

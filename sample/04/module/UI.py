@@ -104,7 +104,12 @@ class Window:
 
             Meth.draw_text(0, 14 + 2 + pos * 1.2, t, clr)
 
-
+    def enemy_status(pt):
+        px.rect(64, 0, 128, 64, px.COLOR_BLACK)
+        for pos, pl in enumerate(pt):
+            t = f"{Meth.pad(pl.name,4)}"
+            clr = px.COLOR_CYAN if pl.is_alive() else px.COLOR_RED
+            Meth.draw_text(8 + 2, pos * 1.2, t, clr)
 
 
 

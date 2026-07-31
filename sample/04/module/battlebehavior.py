@@ -88,6 +88,8 @@ class BattleBehavior(BaseState, Subject):
         self._stack(BattleStack_Delim(self), prior)
     def stack_btltrm(self, prior=False):
         self._stack(BattleStack_Term(self), prior)
+    def stack_btlrun(self, prior=False):
+        self._stack(BattleStack_Interupt(self), prior)
 
     def stack_sensor(self):
         name = self.comand[0].__class__.__name__
@@ -111,6 +113,7 @@ class BattleBehavior(BaseState, Subject):
         px.blt(0, 0, 0, u, v, 64, 64)
         # ステータス表示
         Window.battle_status(self.pt)
+        Window.enemy_status(self.mspt)
 
         self.comand[0].draw()
 

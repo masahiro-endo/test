@@ -78,9 +78,9 @@ class BattleStack_Log(BattleStack_BaseLog):
 
     @classmethod
     def replicate(cls, parent, log):
-        ins = cls(parent)
-        ins.push(log)
-        return ins
+        clone = cls(parent)
+        clone.push(log)
+        return clone
 
 
 
@@ -193,6 +193,11 @@ class BattleStack_Target(OptionState):
             for char in self.actor.party:
                 sub_tree[char.name] = [None, char]
 
+        elif typ == SKLTYP.SPEC:
+            # ターゲット選択をスキップ
+            self.actor.target = self.battle.mspt
+            self.battle.comand.popleft() # 自身をpop()する
+
         return sub_tree
 
     def handle_target_phase(self):
@@ -240,12 +245,12 @@ class BattleStack_Confirm(OptionState):
 
 
 
-# １ターンの終端　分岐
+# １ターンの終端　分岐　通常時
 class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
     def __init__(self, parent):
         self.battle = parent
-        self.log = deque()
+        super().__init__(parent)
 
     def enter(self):
         self.terminal_log()
@@ -305,11 +310,57 @@ class BattleStack_Term(BattleStack_BaseLog, Singleton):
 
         return [f"たたかいに かった",f"{gld}G てにいれた"]
 
-
     def game_over(self):
         self.battle.pt.gold = self.battle.pt.gold // 2
 
         return [f"{"あなた"}たちは", "いしきを うしなった"]
+
+
+
+
+
+class REASON(Enum):
+    ESCAPE = 'escape'
+
+
+# 戦闘の中断　分岐　割り込み
+class BattleStack_Interupt(BattleStack_BaseLog, Singleton):
+
+    def __init__(self, parent, reason=REASON.ESCAPE):
+        self.battle = parent
+        self.reason = reason
+        super().__init__(parent)
+
+    def enter(self):
+        self.terminal_log()
+        return self
+
+    def update(self):
+        push = Meth.get_btn_state()
+
+        if push[BTN.A_Z] or push[BTN.B_X]:
+            self.log.popleft()
+            if not self.is_remain():
+                self.branch_path()
+                # 自身をスタックから除外する
+                self.battle.comand.popleft()
+
+    def draw(self):
+        super().draw()
+ 
+    def branch_path(self):
+        if self.reason == REASON.ESCAPE:
+            gbl.scene_state().Main()
+            self.battle.pt.get_start_location()
+
+    def terminal_log(self):
+        log = []
+        if self.reason == REASON.ESCAPE:
+            log += self.escape()
+        self.push(log)
+
+    def escape(self):
+        return [f"{"あなた"}たちは", "にげのびた..."]
 
 
 
