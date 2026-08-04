@@ -19,7 +19,7 @@ class App():
         self.vw=128
 
 
-        px.init(self.scrw,self.scrh,title="迷路内の擬似３Ｄ化"
+        px.init(self.scrw,self.scrh,title="3d maze"
                 ,display_scale=4,capture_sec=20)
         px.load("assets_wall.pyxres")
 
@@ -35,10 +35,10 @@ class App():
         self.f1left=24              #正面壁近left
         self.f1top=24               #正面壁近top
         self.f0top=0                #正面壁側top
-        self.walll3=(96,80,24, 48)  #左壁中2列目
-        self.walll2=( 0,80, 8, 48)  #左壁中
-        self.walll1=(16,80,16, 80)  #左壁近
-        self.walll0=(48,80,24,128)  #左壁側
+        self.walll3=  (96,80,24, 48)  #左壁中2列目
+        self.walll2 = ( 0,80, 8, 48)  #左壁中
+        self.walll1 = (16,80,16, 80)  #左壁近
+        self.walll0 = (48,80,24,128)  #左壁側
         self.f0l=0                  #左壁側left
         self.wallr3=(120,80,24,48)  #右壁中2列目
         self.wallr2=( 8,80, 8, 48)  #右壁中
