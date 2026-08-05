@@ -1,0 +1,16 @@
+
+
+
+
+
+
+# 定数
+WIDTH = 80
+HEIGHT = 120
+CELL_SIZE = 5
+COLS = WIDTH // CELL_SIZE
+ROWS = HEIGHT // CELL_SIZE
+
+
+
+
