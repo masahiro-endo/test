@@ -6,7 +6,7 @@ from constant import *
 import appconfig as gbl
 from basestate import *
 from actor import *
-
+from method import *
 
 
 
@@ -66,8 +66,10 @@ class SceneState_Play(BaseState):
     def update(self):
         if px.btnp(px.KEY_LEFT) and not self.parent.is_collision(-1, 0):
             gbl.puyo = [(x - 1, y, c) for x, y, c in gbl.puyo]
+            Meth.overwrite_puyoc()
         if px.btnp(px.KEY_RIGHT) and not self.parent.is_collision(1, 0):
             gbl.puyo = [(x + 1, y, c) for x, y, c in gbl.puyo]
+            Meth.overwrite_puyoc()
         if px.btnp(px.KEY_Z):
             self.rotate_ccw()
         if px.btnp(px.KEY_X):
@@ -79,21 +81,23 @@ class SceneState_Play(BaseState):
             self.drop_timer = 0
             if not self.parent.is_collision(0, 1):
                 gbl.puyo = [(x, y + 1, c) for x, y, c in gbl.puyo]
+                Meth.overwrite_puyoc()
             else:
                 self.lock_puyo()
                 self.scene.Drop()
 
     def draw(self):
-        for x, y, col in gbl.puyo:
-            px.rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE, col)
-
+        # for x, y, col in gbl.puyo:
+        #     px.rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE, col)
+        for puyo in gbl.puyoc:
+            puyo.draw()
 
     def lock_puyo(self):
-        for puyo in gbl.puyo:
-            x, y, col = puyo
+        for i, pu in enumerate(gbl.puyo):
+            x, y, col = pu
             if 0 <= y < ROWS:
                 gbl.field[y][x] = col
-                gbl.board[y][x] = Puyo(self.parent, puyo)
+                gbl.board[y][x] = gbl.puyoc[i]
 
 
     #反時計回り
@@ -108,11 +112,10 @@ class SceneState_Play(BaseState):
         new_pos = [(cx, cy, ccol), (cx + ndx, cy + ndy, ocol)] #pivotの座標は変わってない。
         if not self.parent.is_collision(0, 0, new_pos):
             gbl.puyo = new_pos
+            Meth.overwrite_puyoc()
     #時計回り
     def rotate_cw(self):
         self.rotate_ccw(False)
-
-
 
 
 
@@ -138,13 +141,20 @@ class SceneState_Clear(BaseState):
 
     def draw(self):
         # 消去アニメ中は点滅
+        # for pos in self.parent.clear_list:
+        #     x, y = pos
+        #     col  = gbl.field[y][x]
+        #     if self.anim_timer % 4 < 2:
+        #         col = px.COLOR_BLACK
+        #     px.rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE, col)
+            
         for pos in self.parent.clear_list:
             x, y = pos
-            col  = gbl.field[y][x]
+            puyo  = gbl.board[y][x]
+            imgid = PUYO_COLORS.index(puyo.color)
             if self.anim_timer % 4 < 2:
-                col = px.COLOR_BLACK
-            px.rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE, col)
-            
+                imgid = len(PUYO_COLORS)            
+            px.blt(puyo.x * CELL_SIZE, puyo.fy, 0, imgid * CELL_SIZE, 0, CELL_SIZE, CELL_SIZE)
 
             
 
@@ -156,7 +166,6 @@ class SceneState_Drop(BaseState):
         self.scene = parent
 
     def update(self):
-        self.parent.update_board()
 
         # 重力処理
         for x in range(COLS):
@@ -168,7 +177,7 @@ class SceneState_Drop(BaseState):
             # 1
             #---------------------
             stack   = [gbl.field[y][x] for y in range(ROWS) if gbl.field[y][x] != 0]
-            stackbg = [gbl.board[y][x] for y in range(ROWS) if gbl.board[y][x] != 0]
+            stackbg = [gbl.board[y][x] for y in range(ROWS) if gbl.board[y][x]]
             # 底から上に向かってstackの末尾からpop()
             # stack内部 = 4,1 → 0   行末から上に向かって、stack最後尾からpop()していく。
             #                   4
@@ -178,27 +187,23 @@ class SceneState_Drop(BaseState):
                 if stack:
                     gbl.field[y][x] = stack.pop()
                     gbl.board[y][x] = stackbg.pop()
+                    if gbl.board[y][x].y != y: # debug
+                        gbl.board[y][x].y = y
                 else:
                     gbl.field[y][x] = 0
                     gbl.board[y][x] = None
 
-        # 次の連鎖判定
-        self.parent.check_and_clear()
 
-    # def update_drop_anim_gravity(board):
-    #     for col in range(COLS):
-    #         # 下から順に空白を探し、上のぷよを落とす
-    #         for row in range(ROWS - 1, -1, -1):
-    #             if not board[row][col]:
-    #                 # 上方向にぷよを探す
-    #                 for above in range(row - 1, -1, -1):
-    #                     if board[above][col]:
-    #                         board[row][col] = board[above][col]
-    #                         board[above][col] = None
-    #                         break
+        drop = Meth.board_is_droping()
+        if drop:
+            for puyo in drop:
+                puyo.update()
+        else:
+        # 次の連鎖判定
+            self.parent.check_and_clear()
+            
 
     def draw(self):
-        self.parent.draw_board()
-
+        pass
 
 
