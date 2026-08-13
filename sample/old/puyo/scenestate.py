@@ -64,10 +64,10 @@ class SceneState_Play(BaseState):
         self.parent.chain_count = 0
 
     def update(self):
-        if px.btnp(px.KEY_LEFT) and not self.parent.is_collision(-1, 0):
+        if px.btnp(px.KEY_LEFT) and not Meth.is_collision(-1, 0):
             gbl.puyo = [(x - 1, y, c) for x, y, c in gbl.puyo]
             Meth.overwrite_puyoc()
-        if px.btnp(px.KEY_RIGHT) and not self.parent.is_collision(1, 0):
+        if px.btnp(px.KEY_RIGHT) and not Meth.is_collision(1, 0):
             gbl.puyo = [(x + 1, y, c) for x, y, c in gbl.puyo]
             Meth.overwrite_puyoc()
         if px.btnp(px.KEY_Z):
@@ -79,7 +79,7 @@ class SceneState_Play(BaseState):
         self.drop_timer += 1
         if self.drop_timer >= speed:
             self.drop_timer = 0
-            if not self.parent.is_collision(0, 1):
+            if not Meth.is_collision(0, 1):
                 gbl.puyo = [(x, y + 1, c) for x, y, c in gbl.puyo]
                 Meth.overwrite_puyoc()
             else:
@@ -110,7 +110,7 @@ class SceneState_Play(BaseState):
         else:
             ndx, ndy = -dy, dx
         new_pos = [(cx, cy, ccol), (cx + ndx, cy + ndy, ocol)] #pivotの座標は変わってない。
-        if not self.parent.is_collision(0, 0, new_pos):
+        if not Meth.is_collision(0, 0, new_pos):
             gbl.puyo = new_pos
             Meth.overwrite_puyoc()
     #時計回り

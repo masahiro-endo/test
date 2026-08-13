@@ -34,7 +34,7 @@ class ViewModel:
         color2 = random.choice(PUYO_COLORS)
         gbl.puyo  = [(COLS // 2, 0, color1), (COLS // 2, 1, color2)]
         gbl.puyoc = [Puyo(self, gbl.puyo[0]), Puyo(self, gbl.puyo[1])]
-        if self.is_collision(0, 0):
+        if Meth.is_collision(0, 0):
             self.game_over = True
 
 
@@ -48,7 +48,7 @@ class ViewModel:
 
     def check_and_clear(self):
 
-        to_clear = self.find_4puyos_toclear()
+        to_clear = Meth.find_4puyos_toclear()
         if to_clear:
             self.clear_list = to_clear
             self.state.Clear()
