@@ -17,6 +17,7 @@ class BaseEnemy():
         self.score = 100
         self._hp = 1
         self.id = uuid.uuid4()
+        self.item = None
 
     @property
     def hp(self):

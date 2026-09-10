@@ -65,6 +65,41 @@ class SceneState_Title(BaseState):
         pass
 
 
+class SceneState_Extend(BaseState):
+    PLAYABLE = 120
+    def __init__(self, texts):
+        self.texts = texts
+        self.tick = 0
+
+    def update(self):
+        self.tick += 1
+        if self.tick > SceneState_Extend.PLAYABLE:
+            gbl.stack.popleft()
+
+    def draw(self):
+        self.draw_pause()
+
+    def draw_pause(self):
+        for row, text in enumerate(self.texts):
+            x, y = (self.center_text_x(text), self.center_text_y() + (row * 6))
+            self.draw_rect(x, y, len(text), 2) #背景矩形
+            px.text(x, y, text, px.COLOR_WHITE)
+
+    def center_text_x(text):
+        text_width = len(text) * 4  # 1文字4px
+        return (WIDTH - text_width) // 2
+
+    def center_text_y():
+        text_height = 6  # 1文字6px
+        return (HEIGHT - text_height) // 2
+
+    def draw_rect(self, x, y, w, h, clr=px.COLOR_ORANGE):
+        # 描画座標は x8
+        px.rect(x * 8 - 4 , y * 8 + 4 , w * 8 , h * 8 ,clr)
+
+
+
+
 
 class SceneState_Stage1(BaseState):
     def __init__(self, parent):
@@ -73,10 +108,18 @@ class SceneState_Stage1(BaseState):
         self.scene = parent
         self.enemylist = stage1.EnemyList
         self.tick = 0
+        # gbl.stars =  [Star() for _ in range(20)] 
+
+    def enter(self):
+        gbl.stack.appendleft(SceneState_Extend([f"stage 1"]))
+
 
     def update(self):
         if px.frame_count % 30 == 0: 
             self.tick += 1
+
+        # if random.randrange(600)==0: # デブリ出現
+        #     gbl.obstacles.append(Debris())
 
         for i, e in enumerate(self.enemylist):
             bgn, end, interval, cls, data, tick = e
@@ -88,6 +131,8 @@ class SceneState_Stage1(BaseState):
                 self.enemylist[i][-1] += 1
             elif px.frame_count > end:
                 self.enemylist.pop(i)
+
+        gbl.player.update()
 
         Meth.detect_collision()
 

@@ -9,6 +9,9 @@ class Globals:
             cls._instance.bullets = None
             cls._instance.explosions = None
             cls._instance.items = None
+            cls._instance.stars = None
+            cls._instance.obstacles = None
+            cls._instance.stack = None
             cls._instance.state = None
             cls._instance.score = None
         return cls._instance
@@ -50,11 +53,32 @@ def items(new_value):
     Globals().items = new_value
 
 @property
+def stars():
+    return Globals().stars
+@stars.setter
+def stars(new_value):
+    Globals().stars = new_value
+
+@property
+def obstacles():
+    return Globals().obstacles
+@obstacles.setter
+def obstacles(new_value):
+    Globals().obstacles = new_value
+
+@property
+def stack():
+    return Globals().stack
+@stack.setter
+def stack(new_value):
+    Globals().stack = new_value
+
+@property
 def state():
-    return Globals().state
+    return Globals().stack[-1] if Globals().stack else None 
 @state.setter
 def state(new_value):
-    Globals().state = new_value
+    Globals().stack[-1] = new_value
 
 @property
 def score():

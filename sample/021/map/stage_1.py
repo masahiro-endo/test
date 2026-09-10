@@ -6,8 +6,10 @@ from typing import override
 
 import appconfig as gbl
 from constant import * 
-from actor import * 
+from actor.effects import * 
 from map.baseactor import *
+from actor.equip import Bullet
+from actor.player import PowerUp
 
 
 
@@ -18,7 +20,7 @@ from map.baseactor import *
 class EnemyLine(BaseEnemy):
     SIZE = 4
 
-    def __init__(self, path, speed, spacing):
+    def __init__(self, path, speed, spacing, item=None):
         super().__init__(EnemyLine.SIZE)
         self.path = path
         self.x, self.y = path[0]
@@ -26,6 +28,7 @@ class EnemyLine(BaseEnemy):
         self.speed = speed
         self.angle = 0  # 回転角度（度数法）
         self.target_index = 1  # 次の目的地インデックス
+        self.item = item
 
     def update(self):
         if self.is_dead():
@@ -71,24 +74,30 @@ class EnemyLine(BaseEnemy):
         # colkey: 透明色
         # scale: 拡大縮小倍率
         # rotate: 回転角度（度数法）
-        px.blt(
-            x=self.x, y=self.y,  # 中心座標
-            img=0, u=0, v=0, w=EnemyLine.SIZE, h=EnemyLine.SIZE,
-            colkey=0,
-            scale=1,
-            rotate=self.angle)
+        # px.blt(
+        #     x=self.x, y=self.y,  # 中心座標
+        #     img=0, u=0, v=0, w=EnemyLine.SIZE, h=EnemyLine.SIZE,
+        #     colkey=0,
+        #     scale=1,
+        #     rotate=self.angle)
+        color = px.COLOR_ORANGE if self.item else px.COLOR_LIGHT_BLUE
+        px.rect(self.x, self.y, EnemyLine.SIZE, EnemyLine.SIZE, color)
         px.text(self.x, self.y, str(self.hp), px.COLOR_WHITE)
-
+    
     @classmethod
     def spawn(cls, *args):
         path = args[0]
         speed = args[1]
         spacing = args[2]
+        item = args[3]
+        owner = random.choice([0, 1, 2, 3, 4])
         for i in range(5):
+            addr = item if i==owner else None
             e = cls(
                 path, 
                 speed,
-                (i * spacing)
+                (i * spacing),
+                addr
             )
             gbl.enemies.append(e)
 
@@ -146,16 +155,16 @@ class EnemyEscape(BaseEnemy):
         if side == "top":
             x, y = random.randint(0, WIDTH), 0
         elif side == "bottom":
-            x, y = random.randint(0, WIDTH), HEIGHT - 8
+            x, y = random.randint(0, WIDTH), HEIGHT - EnemyEscape.SIZE
         elif side == "left":
             x, y = 0, random.randint(0, HEIGHT)
         else:  # right
-            x, y = WIDTH - 8, random.randint(0, HEIGHT)
+            x, y = WIDTH - EnemyEscape.SIZE, random.randint(0, HEIGHT)
 
-        gbl.enemies.append(cls(x + (Player.SIZE//2), y + (Player.SIZE//2)))
+        gbl.enemies.append(cls(x, y))
 
     def fire_bullet(self):
-            Bullet.chase_player(gbl.player, self)
+            Bullet.chase_target(gbl.player, self)
 
 
 
@@ -271,10 +280,10 @@ class stage1:
     #     [100, 600, 10000, EnemyBoss, [WIDTH // 2 - 16, 10], 0],
     # ]
     EnemyList = [
-        [100, 200, 200, EnemyLine, [[(10 , -3), (10, 90), (40, 50), (40, - 10)], 1.5, 10], 0],
+        [100, 200, 200, EnemyLine, [[(10 , -3), (10, 90), (40, 50), (40, - 10)], 1.5, 10, PowerUp], 0],
         [100, 500, EnemyEscape.SPAWN_INTERVAL,  EnemyEscape, [], 0],
-        [200, 300, 200, EnemyLine, [[(100 , -3), (100, 90), (50, 40), (50, - 10)], 1.5, 10], 0],
-        [300, 400, 200, EnemyLine, [[(10 , -3), (10, 90), (60, 50), (60, - 10)], 1.5, 10], 0],
+        [200, 300, 200, EnemyLine, [[(100 , -3), (100, 90), (50, 40), (50, - 10)], 1.5, 10, None], 0],
+        [300, 400, 200, EnemyLine, [[(10 , -3), (10, 90), (60, 50), (60, - 10)], 1.5, 10, None], 0],
         [500, 600, 10000, EnemyBoss, [WIDTH // 2 - 16, 10], 0],
     ]
 

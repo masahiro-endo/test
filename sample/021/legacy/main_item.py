@@ -14,7 +14,7 @@ class Player:
         self.speed = 2
         self.power = 1  # 弾の威力レベル
         self.cooldown = 0
-        self.bullets = []
+        self.obstacles = []
 
     def update(self):
         # 移動
@@ -31,25 +31,25 @@ class Player:
             self.cooldown = 10  # 発射間隔
 
         # 弾更新
-        for b in self.bullets:
+        for b in self.obstacles:
             b["y"] -= 3
-        self.bullets = [b for b in self.bullets if b["y"] > -4]
+        self.obstacles = [b for b in self.obstacles if b["y"] > -4]
 
     def shoot(self):
         # パワーに応じて弾数増加
         if self.power == 1:
-            self.bullets.append({"x": self.x + 3, "y": self.y})
+            self.obstacles.append({"x": self.x + 3, "y": self.y})
         elif self.power == 2:
-            self.bullets.append({"x": self.x, "y": self.y})
-            self.bullets.append({"x": self.x + 6, "y": self.y})
+            self.obstacles.append({"x": self.x, "y": self.y})
+            self.obstacles.append({"x": self.x + 6, "y": self.y})
         else:  # power >= 3
-            self.bullets.append({"x": self.x - 2, "y": self.y})
-            self.bullets.append({"x": self.x + 3, "y": self.y})
-            self.bullets.append({"x": self.x + 8, "y": self.y})
+            self.obstacles.append({"x": self.x - 2, "y": self.y})
+            self.obstacles.append({"x": self.x + 3, "y": self.y})
+            self.obstacles.append({"x": self.x + 8, "y": self.y})
 
     def draw(self):
         pyxel.rect(self.x, self.y, 8, 8, 11)  # プレイヤー
-        for b in self.bullets:
+        for b in self.obstacles:
             pyxel.rect(b["x"], b["y"], 2, 4, 10)
 
 # --- 敵 ---
@@ -112,7 +112,7 @@ class App:
             it.update()
 
         # 弾と敵の当たり判定
-        for b in self.player.bullets:
+        for b in self.player.obstacles:
             for e in self.enemies:
                 if e.alive and abs(b["x"] - e.x) < 6 and abs(b["y"] - e.y) < 6:
                     e.alive = False

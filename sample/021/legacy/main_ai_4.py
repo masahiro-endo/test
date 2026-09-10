@@ -97,7 +97,7 @@ class Player:
         self.x = 20
         self.y = HEIGHT // 2
         self.speed = 2
-        self.bullets = []
+        self.obstacles = []
         self.alive = True
 
     def update(self):
@@ -113,16 +113,16 @@ class Player:
             self.x += self.speed
 
         if pyxel.btnp(pyxel.KEY_SPACE):
-            self.bullets.append([self.x + 8, self.y + 3])
+            self.obstacles.append([self.x + 8, self.y + 3])
 
-        for b in self.bullets:
+        for b in self.obstacles:
             b[0] += 3
-        self.bullets = [b for b in self.bullets if b[0] < WIDTH]
+        self.obstacles = [b for b in self.obstacles if b[0] < WIDTH]
 
     def draw(self):
         if self.alive:
             pyxel.rect(self.x, self.y, 8, 8, 11)
-        for b in self.bullets:
+        for b in self.obstacles:
             pyxel.rect(b[0], b[1], 2, 2, 7)
 
 
@@ -166,12 +166,12 @@ class App:
             e.update()
 
         # 弾と敵の衝突
-        for b in self.player.bullets[:]:
+        for b in self.player.obstacles[:]:
             for e in self.enemies[:]:
                 if (e.x < b[0] < e.x + 8) and (e.y < b[1] < e.y + 8):
                     self.score += 100
                     self.enemies.remove(e)
-                    self.player.bullets.remove(b)
+                    self.player.obstacles.remove(b)
                     break
 
         self.enemies = [e for e in self.enemies if not e.is_offscreen()]

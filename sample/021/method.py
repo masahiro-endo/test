@@ -1,6 +1,8 @@
 
+import random
+
 import appconfig as gbl
-from actor import *
+from actor.effects import *
 
 
 
@@ -17,6 +19,8 @@ class Meth:
                         gbl.bullets.remove(b)
                     if e.is_dead():
                         if e in gbl.enemies:
+                            if e.item:
+                                e.item.spawn(e.x, e.y)
                             gbl.enemies.remove(e)
                             gbl.explosions.append(Explosion(b.x, b.y))
                     else:
